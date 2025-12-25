@@ -436,8 +436,8 @@ MIT - See [LICENSE](LICENSE) file for details.
 
 ## Credits
 
-Built by [Jack Arturo](https://github.com/jgarturo) and [Very Good Plugins](https://verygoodplugins.com)
+Built by [Jack Arturo](https://x.com/verygoodplugins) 🧡
 
 - Powered by [Pirsch Analytics](https://pirsch.io)
 - Built with [Model Context Protocol SDK](https://github.com/anthropics/model-context-protocol)
-- Part of the [Very Good Plugins](https://verygoodplugins.com) MCP ecosystem
+- Part of the [Very Good Plugins](https://verygoodplugins.com?utm_source=github) MCP ecosystem

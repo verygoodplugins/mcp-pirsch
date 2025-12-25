@@ -1,0 +1,43 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
+  "name": "io.github.verygoodplugins/mcp-pirsch",
+  "description": "MCP server for Pirsch Analytics. Natural language queries, period comparisons, and trend analysis for website traffic.",
+  "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/verygoodplugins/mcp-pirsch"
+  },
+  "packages": [
+    {
+      "registry_type": "npm",
+      "identifier": "@verygoodplugins/mcp-pirsch",
+      "version": "0.1.0"
+    }
+  ],
+  "tools": [
+    {
+      "name": "pirsch_list_domains",
+      "description": "List all domains in your Pirsch account"
+    },
+    {
+      "name": "pirsch_stats",
+      "description": "Get traffic statistics for a domain"
+    },
+    {
+      "name": "pirsch_compare",
+      "description": "Compare traffic between two time periods"
+    },
+    {
+      "name": "pirsch_pages",
+      "description": "Get page-level analytics"
+    },
+    {
+      "name": "pirsch_referrers",
+      "description": "Get referrer statistics"
+    }
+  ],
+  "author": {
+    "name": "Very Good Plugins",
+    "url": "https://verygoodplugins.com/?utm_source=mcp-registry"
+  }
+}

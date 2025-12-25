@@ -4,6 +4,10 @@
   "description": "MCP server for Pirsch Analytics: stats, comparisons, trends",
   "main": "dist/index.js",
   "type": "module",
+  "mcpName": "io.github.verygoodplugins/mcp-pirsch",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "bin": {
     "mcp-pirsch": "dist/index.js"
   },

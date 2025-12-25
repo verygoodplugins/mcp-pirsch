@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__mcp-pirsch__pirsch_list_domains",
+      "mcp__mcp-pirsch__pirsch_overview",
+      "mcp__mcp-pirsch__pirsch_pages",
+      "mcp__mcp-pirsch__*",
+      "mcp__mcp-pirsch__pirsch_referrers",
+      "mcp__mcp-pirsch__pirsch_growth",
+      "Read(/Users/jgarturo/Projects/OpenAI/mcp-servers/mcp-toggl/**)",
+      "Read(/Users/jgarturo/Projects/OpenAI/mcp-servers/mcp-freescout/**)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "mcp-pirsch"
+  ]
+}
