@@ -16,7 +16,7 @@
 #
 # npm Publishing:
 #   Uses Trusted Publishing (OIDC) - no secrets needed!
-#   Configure at: https://www.npmjs.com/package/@verygoodplugins/mcp-{name}/access
+#   Configure at: https://www.npmjs.com/package/@verygoodplugins/mcp-pirsch/access
 
 name: Release Please
 

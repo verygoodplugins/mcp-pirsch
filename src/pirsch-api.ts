@@ -1,9 +1,15 @@
-#!/usr/bin/env node
 import fetch from 'node-fetch';
 import type { PirschTokenResponse, Domain, FilterInput } from './types.js';
 import { buildFilterParams } from './filters.js';
 
 const BASE_URL = 'https://api.pirsch.io/api/v1';
+
+class AuthError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AuthError';
+  }
+}
 
 interface TokenCache {
   token: string | null;
@@ -29,6 +35,11 @@ export class PirschAPI {
   }
 
   private async refreshToken(): Promise<void> {
+    if (!this.clientId || !this.clientSecret) {
+      throw new AuthError(
+        'Pirsch credentials missing. PIRSCH_CLIENT_ID and PIRSCH_CLIENT_SECRET must be set.'
+      );
+    }
     const url = `${BASE_URL}/token`;
     const res = await fetch(url, {
       method: 'POST',
@@ -40,7 +51,12 @@ export class PirschAPI {
     });
     if (!res.ok) {
       const body = await res.text();
-      throw new Error(`Pirsch auth failed (${res.status}): ${body}`);
+      const masked = this.clientId.slice(0, 6) + '***';
+      throw new AuthError(
+        `Pirsch auth failed (${res.status}) for client_id=${masked}. ` +
+        `Verify PIRSCH_CLIENT_ID and PIRSCH_CLIENT_SECRET are valid in the Pirsch dashboard. ` +
+        `Response: ${body}`
+      );
     }
     const data = (await res.json()) as PirschTokenResponse;
     this.token.token = data.access_token;
