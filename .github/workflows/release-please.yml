@@ -70,7 +70,7 @@ jobs:
     steps:
       - name: Post to Slack
         if: ${{ vars.SLACK_WEBHOOK_URL }}
-        uses: slackapi/slack-github-action@v1
+        uses: slackapi/slack-github-action@v3
         with:
           webhook-url: ${{ vars.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook
