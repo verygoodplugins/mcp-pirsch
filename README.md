@@ -11,6 +11,8 @@ A Model Context Protocol (MCP) server for Pirsch Analytics, enabling natural lan
 - 📊 **Core Analytics** - Comprehensive stats including visitors, page views, bounce rates, and conversion rates
 - 📈 **Time Series Data** - Flexible visitor trends with day/week/month/year granularity
 - 🔄 **Period Comparisons** - Compare metrics across different time periods with calculated deltas
+- 🎯 **Goals & Events** - Read conversion goals, event activity, and event-specific page performance
+- 🧭 **Session Drilldown** - Inspect entry pages, exit pages, session lists, and per-session timelines
 - ⚡ **Real-time Insights** - Active visitor tracking with configurable time windows
 - 🎯 **Advanced Filtering** - Full support for Pirsch query parameters including UTM, referrers, and dimensions
 - 🌍 **Multi-domain Support** - Manage analytics across multiple websites from one interface
@@ -180,6 +182,8 @@ Get cached overview statistics for a domain.
 
 **Returns:** Visitors, page views, and member counts
 
+**Note:** This is the Pirsch cached overview endpoint. Filters do not apply, and it should not be used as a substitute for `pirsch_total` over a custom date range.
+
 #### `pirsch_total`
 Get total metrics for a specific period.
 
@@ -187,7 +191,9 @@ Get total metrics for a specific period.
 - `domain_id` (optional): Target domain ID
 - `filter` (optional): Filter object with date range, dimensions, etc.
 
-**Returns:** Total visitors, views, sessions, bounces, bounce rate, conversion rate
+Most analytics tools accept filter fields either inside `filter` or as top-level arguments. Both forms are supported for MCP client compatibility.
+
+**Returns:** Total visitors, views, sessions, bounces, bounce rate, conversion rate, and custom metric aggregates
 
 #### `pirsch_visitors`
 Get visitor time series data.
@@ -213,12 +219,44 @@ Get top pages with performance metrics.
   - `include_avg_time_on_page`: Include time metrics
   - `include_title`: Include page titles
 
+**Tip:** Exact `path: "/news/"` still matches only that URL. For section queries on page-style tools, path-shaped values such as `search: "/news/"`, `path: "~/news/"`, or `pattern: "/news/*"` are narrowed again inside the MCP so `/documentation/news/...` does not leak into `/news/...` results. `path_prefix` is also available when you want an explicit root-prefix filter.
+Top-level `search`, `path`, and `path_prefix` arguments are also accepted.
+
+#### `pirsch_entry_pages`
+Get entry page analytics.
+
+#### `pirsch_exit_pages`
+Get exit page analytics.
+
 #### `pirsch_referrers`
 Analyze traffic sources and referrers.
 
 **Parameters:**
 - `domain_id` (optional): Target domain ID
 - `filter` (optional): Standard filter parameters
+
+#### `pirsch_goals`
+Get conversion goals together with their observed stats.
+
+**Parameters:**
+- `domain_id` (optional): Target domain ID
+- `filter` (optional): Standard filter parameters
+
+#### `pirsch_events`
+Get aggregated event statistics including counts, visitors, conversion rate, and metadata keys.
+
+**Parameters:**
+- `domain_id` (optional): Target domain ID
+- `filter` (optional): Standard filter parameters
+
+#### `pirsch_event_pages`
+Get pages on which a specific event fired.
+
+**Parameters:**
+- `domain_id` (optional): Target domain ID
+- `filter` (required): Standard filter parameters, including `event`
+
+The event can also be passed as a top-level `event` argument. If your client uses goal payload field names, `event_name` is accepted as an alias and normalized to `event`. The same path-prefix narrowing described for `pirsch_pages` also applies here.
 
 #### `pirsch_utm`
 Analyze UTM campaign parameters.
@@ -254,10 +292,26 @@ Get currently active visitors and pages.
 Show me active visitors in the last 5 minutes
 ```
 
+### Session Analytics
+
+#### `pirsch_sessions`
+Get session list data including entry/exit pages, duration, geography, device, and traffic source context.
+
+**Parameters:**
+- `domain_id` (optional): Target domain ID
+- `filter` (optional): Standard filter parameters
+
+#### `pirsch_session_details`
+Get the chronological page-view and event timeline for a single session.
+
+**Parameters:**
+- `domain_id` (optional): Target domain ID
+- `filter` (required): Must include both `visitor_id` and `session_id`
+
 ### Comparative Analytics
 
 #### `pirsch_compare`
-Compare metrics between two time periods.
+Compare metrics between two time periods using true period totals from Pirsch totals, plus the matching visitor series for charts.
 
 **Parameters:**
 - `domain_id` (optional): Target domain ID
@@ -286,7 +340,7 @@ Most tools accept a `filter` object that maps to Pirsch query parameters:
   "tz": "America/New_York",    // Timezone
   
   // Dimensions
-  "path": "/blog/*",           // Page path pattern
+  "path": "~/news/",           // Exact or operator-based path filter (~ contains, ! not, ^ does-not-contain)
   "entry_path": "/landing",    // Entry page
   "exit_path": "/checkout",    // Exit page
   "pattern": "*.pdf",          // URL pattern
@@ -319,12 +373,16 @@ Most tools accept a `filter` object that maps to Pirsch query parameters:
   "limit": 100,
   "sort": "visitors",
   "direction": "desc",         // asc | desc
-  "search": "blog",
+  "search": "/news/",          // Path-shaped searches are narrowed to root-prefix matches on page-style tools
+  "path_prefix": "/news/",     // Optional explicit MCP-local prefix matcher for page-style tools
+  "keyword": "wordpress crm",  // Google Search Console keyword filter
   
   // Advanced
   "event": "signup",
   "event_meta_key": "plan",
   "tag": "premium",
+  "visitor_id": "12345...",    // Required together with session_id for pirsch_session_details
+  "session_id": "67890",
   "custom_metric_key": "revenue",
   "custom_metric_type": "float"
 }
@@ -339,7 +397,7 @@ Show me the visitor statistics for last week
 
 ### Page Performance Analysis
 ```
-What are my top 10 pages by traffic this month?
+What are my top 10 /news/ posts by traffic this month?
 ```
 
 ### Campaign Tracking
@@ -360,6 +418,16 @@ Compare this month's metrics to the same period last year
 ### Real-time Monitoring
 ```
 How many people are on my site right now?
+```
+
+### Goals and Events
+```
+Show me conversion goals and top event-driven pages for the last 90 days
+```
+
+### Session Investigation
+```
+List recent sessions that entered on /news/ and inspect one session in detail
 ```
 
 ## Development
@@ -408,6 +476,9 @@ npm test
 - Verify the date range contains data
 - Check timezone settings match your Pirsch configuration
 - Ensure proper filtering parameters
+- Use `pirsch_total` for custom date range totals; `pirsch_overview` is cached and not filterable
+- For page-style tools, path-shaped `search`, `~/path/`, and `/path/*` filters are narrowed to root-prefix matches inside the MCP
+- Use `path_prefix` when you want explicit prefix behavior without relying on Pirsch operators
 
 ### Performance
 

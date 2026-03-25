@@ -6,7 +6,7 @@ export function buildFilterParams(filter: FilterInput, domainId: string, default
   // Always include domain id
   params.set('id', domainId);
 
-  const set = (key: keyof FilterInput, val?: any) => {
+  const set = (key: keyof FilterInput, val?: string | number | boolean | null) => {
     if (val === undefined || val === null || val === '') return;
     params.set(String(key), String(val));
   };
@@ -61,6 +61,7 @@ export function buildFilterParams(filter: FilterInput, domainId: string, default
   set('sort', filter.sort);
   set('direction', filter.direction);
   set('search', filter.search);
+  set('keyword', filter.keyword);
 
   // Session filters
   set('visitor_id', filter.visitor_id);
@@ -68,4 +69,3 @@ export function buildFilterParams(filter: FilterInput, domainId: string, default
 
   return params;
 }
-
