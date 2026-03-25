@@ -4,7 +4,7 @@ import type { StatisticsTotals, VisitorsPoint } from './types.js';
 process.env.PIRSCH_CLIENT_ID = process.env.PIRSCH_CLIENT_ID || 'test-client-id';
 process.env.PIRSCH_CLIENT_SECRET = process.env.PIRSCH_CLIENT_SECRET || 'test-client-secret';
 
-const { getComparisonResponse, normalizeFilterArgs } = await import('./index.js');
+const { getComparisonResponse, getLocalPathPrefix, getPathFilteredStatistics, normalizeFilterArgs } = await import('./index.js');
 
 describe('getComparisonResponse', () => {
   it('uses statistics/total for totals and statistics/visitor for chart series', async () => {
@@ -143,5 +143,61 @@ describe('normalizeFilterArgs', () => {
       to: '2026-03-25',
       event: 'Order',
     });
+  });
+});
+
+describe('getLocalPathPrefix', () => {
+  it('derives a root-prefix matcher from path-shaped search and operator filters', () => {
+    expect(getLocalPathPrefix({ search: '/tutorials/' })).toBe('/tutorials/');
+    expect(getLocalPathPrefix({ path: '~/tutorials/' })).toBe('/tutorials/');
+    expect(getLocalPathPrefix({ pattern: '/tutorials/*' })).toBe('/tutorials/');
+    expect(getLocalPathPrefix({ path_prefix: '/news/' })).toBe('/news/');
+  });
+
+  it('leaves exact path filters alone', () => {
+    expect(getLocalPathPrefix({ path: '/tutorials/' })).toBeUndefined();
+    expect(getLocalPathPrefix({ search: 'tutorials' })).toBeUndefined();
+  });
+});
+
+describe('getPathFilteredStatistics', () => {
+  it('fetches additional batches until it has enough prefix matches', async () => {
+    const firstBatch = Array.from({ length: 99 }, (_, index) => ({
+      path: `/documentation/tutorials/article-${index}/`,
+    }));
+    firstBatch.push({ path: '/tutorials/root-one/' });
+
+    const secondBatch = [
+      { path: '/tutorials/root-two/' },
+      { path: '/tutorials/root-three/' },
+    ];
+
+    const getStatistics = vi
+      .fn()
+      .mockResolvedValueOnce(firstBatch)
+      .mockResolvedValueOnce(secondBatch);
+
+    const result = await getPathFilteredStatistics(
+      { getStatistics },
+      '/statistics/page',
+      'domain-1',
+      { search: '/tutorials/', limit: 2 },
+      '/tutorials/'
+    );
+
+    expect(getStatistics).toHaveBeenNthCalledWith(1, '/statistics/page', 'domain-1', {
+      search: '/tutorials/',
+      limit: 100,
+      offset: 0,
+    });
+    expect(getStatistics).toHaveBeenNthCalledWith(2, '/statistics/page', 'domain-1', {
+      search: '/tutorials/',
+      limit: 100,
+      offset: 100,
+    });
+    expect(result).toEqual([
+      { path: '/tutorials/root-one/' },
+      { path: '/tutorials/root-two/' },
+    ]);
   });
 });

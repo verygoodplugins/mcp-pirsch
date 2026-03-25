@@ -50,6 +50,7 @@ describe('buildFilterParams', () => {
       {
         hostname: 'example.com',
         path: '/blog',
+        path_prefix: '/news/',
         entry_path: '/landing',
         exit_path: '/checkout',
         pattern: '*.pdf',
@@ -61,6 +62,7 @@ describe('buildFilterParams', () => {
 
     expect(params.get('hostname')).toBe('example.com');
     expect(params.get('path')).toBe('/blog');
+    expect(params.has('path_prefix')).toBe(false);
     expect(params.get('entry_path')).toBe('/landing');
     expect(params.get('exit_path')).toBe('/checkout');
     expect(params.get('pattern')).toBe('*.pdf');

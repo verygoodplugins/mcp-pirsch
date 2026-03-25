@@ -219,8 +219,8 @@ Get top pages with performance metrics.
   - `include_avg_time_on_page`: Include time metrics
   - `include_title`: Include page titles
 
-**Tip:** Use `filter.search` for contains matching in page paths, or Pirsch operators in `filter.path` such as `~/news/` for prefix/contains matching. Exact `path: "/news/"` only matches that path.
-Top-level `search` and `path` arguments are also accepted.
+**Tip:** Exact `path: "/news/"` still matches only that URL. For section queries on page-style tools, path-shaped values such as `search: "/news/"`, `path: "~/news/"`, or `pattern: "/news/*"` are narrowed again inside the MCP so `/documentation/news/...` does not leak into `/news/...` results. `path_prefix` is also available when you want an explicit root-prefix filter.
+Top-level `search`, `path`, and `path_prefix` arguments are also accepted.
 
 #### `pirsch_entry_pages`
 Get entry page analytics.
@@ -256,7 +256,7 @@ Get pages on which a specific event fired.
 - `domain_id` (optional): Target domain ID
 - `filter` (required): Standard filter parameters, including `event`
 
-The event can also be passed as a top-level `event` argument. If your client uses goal payload field names, `event_name` is accepted as an alias and normalized to `event`.
+The event can also be passed as a top-level `event` argument. If your client uses goal payload field names, `event_name` is accepted as an alias and normalized to `event`. The same path-prefix narrowing described for `pirsch_pages` also applies here.
 
 #### `pirsch_utm`
 Analyze UTM campaign parameters.
@@ -373,7 +373,8 @@ Most tools accept a `filter` object that maps to Pirsch query parameters:
   "limit": 100,
   "sort": "visitors",
   "direction": "desc",         // asc | desc
-  "search": "/news/",          // Contains search on the endpoint's primary field
+  "search": "/news/",          // Path-shaped searches are narrowed to root-prefix matches on page-style tools
+  "path_prefix": "/news/",     // Optional explicit MCP-local prefix matcher for page-style tools
   "keyword": "wordpress crm",  // Google Search Console keyword filter
   
   // Advanced
@@ -476,7 +477,8 @@ npm test
 - Check timezone settings match your Pirsch configuration
 - Ensure proper filtering parameters
 - Use `pirsch_total` for custom date range totals; `pirsch_overview` is cached and not filterable
-- For path matching, prefer `search` or Pirsch path operators like `~/news/` over exact `path` when you want a section instead of one URL
+- For page-style tools, path-shaped `search`, `~/path/`, and `/path/*` filters are narrowed to root-prefix matches inside the MCP
+- Use `path_prefix` when you want explicit prefix behavior without relying on Pirsch operators
 
 ### Performance
 

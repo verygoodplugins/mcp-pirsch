@@ -23,6 +23,7 @@ export interface FilterInput {
   scale?: 'day' | 'week' | 'month' | 'year';
   hostname?: string;
   path?: string;
+  path_prefix?: string; // MCP-local prefix matcher for page-style tools; not sent to the Pirsch API
   entry_path?: string;
   exit_path?: string;
   pattern?: string;

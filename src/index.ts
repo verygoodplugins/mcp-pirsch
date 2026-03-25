@@ -36,12 +36,20 @@ interface StatisticsToolConfig {
   description: string;
   endpoint: string;
   resultKey: string;
+  supportsLocalPathPrefix?: boolean;
   validateFilter?: (filter: FilterInput) => void;
 }
 
 interface StatisticsReader {
   getStatistics<T = unknown>(endpoint: string, domainId: string, filter?: FilterInput): Promise<T>;
 }
+
+interface PathRow {
+  path?: string | null;
+}
+
+const DEFAULT_LOCAL_FILTER_BATCH_SIZE = 100;
+const MAX_LOCAL_FILTER_BATCHES = 20;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -116,6 +124,105 @@ export function normalizeFilterArgs(args: ToolArguments | undefined): FilterInpu
   delete mergedFilter.event_name;
 
   return mergedFilter;
+}
+
+function readTrimmedString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined;
+}
+
+function normalizePathPrefix(value: string | undefined): string | undefined {
+  if (!value || !value.startsWith('/')) {
+    return undefined;
+  }
+
+  return value;
+}
+
+function extractPatternPrefix(pattern: string | undefined): string | undefined {
+  if (!pattern || !pattern.startsWith('/') || !pattern.endsWith('*')) {
+    return undefined;
+  }
+
+  const prefix = pattern.slice(0, -1);
+  return prefix.endsWith('/') ? prefix : undefined;
+}
+
+export function getLocalPathPrefix(filter: FilterInput): string | undefined {
+  const explicitPrefix = normalizePathPrefix(readTrimmedString(filter.path_prefix));
+  if (explicitPrefix) {
+    return explicitPrefix;
+  }
+
+  const searchPrefix = normalizePathPrefix(readTrimmedString(filter.search));
+  if (searchPrefix) {
+    return searchPrefix;
+  }
+
+  const path = readTrimmedString(filter.path);
+  if (path?.startsWith('~/')) {
+    return normalizePathPrefix(path.slice(1));
+  }
+
+  return extractPatternPrefix(readTrimmedString(filter.pattern));
+}
+
+function filterRowsByPathPrefix<T>(rows: T[], prefix: string): T[] {
+  return rows.filter((row) => isRecord(row) && typeof row.path === 'string' && row.path.startsWith(prefix));
+}
+
+function buildApiFilterForLocalPathPrefix(
+  filter: FilterInput,
+  prefix: string,
+  offset: number,
+  limit: number
+): FilterInput {
+  const apiFilter: FilterInput = {
+    ...filter,
+    offset,
+    limit,
+  };
+
+  delete apiFilter.path_prefix;
+
+  if (!apiFilter.search && !apiFilter.path && !apiFilter.pattern) {
+    apiFilter.search = prefix;
+  }
+
+  return apiFilter;
+}
+
+export async function getPathFilteredStatistics(
+  client: StatisticsReader,
+  endpoint: string,
+  domainId: string,
+  filter: FilterInput,
+  prefix: string
+): Promise<PathRow[] | unknown> {
+  const requestedOffset = filter.offset ?? 0;
+  const requestedLimit = filter.limit ?? DEFAULT_LOCAL_FILTER_BATCH_SIZE;
+  const targetCount = requestedOffset + requestedLimit;
+  const batchSize = Math.max(requestedLimit, DEFAULT_LOCAL_FILTER_BATCH_SIZE);
+  const matches: PathRow[] = [];
+
+  for (let batchIndex = 0; batchIndex < MAX_LOCAL_FILTER_BATCHES && matches.length < targetCount; batchIndex += 1) {
+    const data = await client.getStatistics<unknown>(
+      endpoint,
+      domainId,
+      buildApiFilterForLocalPathPrefix(filter, prefix, batchIndex * batchSize, batchSize)
+    );
+
+    if (!Array.isArray(data)) {
+      return data;
+    }
+
+    matches.push(...filterRowsByPathPrefix(data, prefix));
+
+    if (data.length < batchSize) {
+      break;
+    }
+  }
+
+  return matches.slice(requestedOffset, targetCount);
 }
 
 function requireFilterString(filter: FilterInput, key: 'event' | 'visitor_id' | 'session_id', toolName: string): string {
@@ -263,6 +370,7 @@ const filterSchemaProperties = {
   scale: { type: 'string', enum: ['day', 'week', 'month', 'year'] },
   hostname: { type: 'string' },
   path: { type: 'string', description: 'Supports Pirsch operators like ~contains, !not, and ^does-not-contain' },
+  path_prefix: { type: 'string', description: 'MCP-local path prefix filter for page-style tools, e.g. /tutorials/' },
   entry_path: { type: 'string' },
   exit_path: { type: 'string' },
   pattern: { type: 'string' },
@@ -326,18 +434,21 @@ const statisticsToolConfigs: StatisticsToolConfig[] = [
     description: 'Get page stats with sorting, search, and optional average time on page',
     endpoint: '/statistics/page',
     resultKey: 'pages',
+    supportsLocalPathPrefix: true,
   },
   {
     name: 'pirsch_entry_pages',
     description: 'Get entry page stats with sorting, search, and optional average time on page',
     endpoint: '/statistics/page/entry',
     resultKey: 'entry_pages',
+    supportsLocalPathPrefix: true,
   },
   {
     name: 'pirsch_exit_pages',
     description: 'Get exit page stats with sorting and search',
     endpoint: '/statistics/page/exit',
     resultKey: 'exit_pages',
+    supportsLocalPathPrefix: true,
   },
   {
     name: 'pirsch_referrers',
@@ -362,6 +473,7 @@ const statisticsToolConfigs: StatisticsToolConfig[] = [
     description: 'Get pages on which a specific event fired. Requires filter.event',
     endpoint: '/statistics/event/page',
     resultKey: 'event_pages',
+    supportsLocalPathPrefix: true,
     validateFilter: (filter) => {
       requireFilterString(filter, 'event', 'pirsch_event_pages');
     },
@@ -469,7 +581,10 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       const domainId = await resolveDomainId(readOptionalString(args, 'domain_id'));
       const filter = normalizeFilterArgs(args);
       statisticsTool.validateFilter?.(filter);
-      const data = await api.getStatistics(statisticsTool.endpoint, domainId, filter);
+      const localPathPrefix = statisticsTool.supportsLocalPathPrefix ? getLocalPathPrefix(filter) : undefined;
+      const data = localPathPrefix
+        ? await getPathFilteredStatistics(api, statisticsTool.endpoint, domainId, filter, localPathPrefix)
+        : await api.getStatistics(statisticsTool.endpoint, domainId, filter);
       return formatResponse({ domain_id: domainId, [statisticsTool.resultKey]: data });
     }
 
