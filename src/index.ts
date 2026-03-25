@@ -7,7 +7,7 @@ import { PirschAPI } from './pirsch-api.js';
 import type { FilterInput, VisitorsPoint } from './types.js';
 import { getDateRange, isoDate, sumSeries, pctChange } from './utils.js';
 
-config();
+config({ quiet: true });
 
 const CLIENT_ID = process.env.PIRSCH_CLIENT_ID;
 const CLIENT_SECRET = process.env.PIRSCH_CLIENT_SECRET;
