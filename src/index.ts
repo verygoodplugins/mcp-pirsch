@@ -4,8 +4,8 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema, Tool } from '@modelcontextprotocol/sdk/types.js';
 import { config } from 'dotenv';
 import { PirschAPI } from './pirsch-api.js';
-import type { FilterInput, VisitorsPoint } from './types.js';
-import { getDateRange, isoDate, sumSeries, pctChange } from './utils.js';
+import type { Domain, FilterInput, StatisticsTotals, VisitorsPoint } from './types.js';
+import { getDateRange, isoDate, pctChange } from './utils.js';
 
 config();
 
@@ -20,12 +20,177 @@ if (!CLIENT_ID || !CLIENT_SECRET) {
 
 const api = new PirschAPI(CLIENT_ID, CLIENT_SECRET);
 
+type ToolArguments = Record<string, unknown>;
+type PeriodName = 'today' | 'yesterday' | 'week' | 'lastWeek' | 'month' | 'lastMonth';
+type ScaleName = 'day' | 'week' | 'month' | 'year';
+type CompareMode = 'previous' | 'year' | 'custom';
+type SchemaProperty = { [key: string]: unknown };
+type ToolInputSchema = {
+  type: 'object';
+  properties: Record<string, SchemaProperty>;
+  required?: string[];
+};
+
+interface StatisticsToolConfig {
+  name: string;
+  description: string;
+  endpoint: string;
+  resultKey: string;
+  validateFilter?: (filter: FilterInput) => void;
+}
+
+interface StatisticsReader {
+  getStatistics<T = unknown>(endpoint: string, domainId: string, filter?: FilterInput): Promise<T>;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isDomain(value: unknown): value is Domain {
+  return isRecord(value) && typeof value.id === 'string';
+}
+
+function formatResponse(payload: unknown) {
+  return {
+    content: [{ type: 'text' as const, text: JSON.stringify(payload, null, 2) }],
+  };
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'An error occurred';
+}
+
+function readArgs(value: unknown): ToolArguments | undefined {
+  return isRecord(value) ? value : undefined;
+}
+
+function readOptionalString(args: ToolArguments | undefined, key: string): string | undefined {
+  const value = args?.[key];
+  return typeof value === 'string' && value.trim() !== '' ? value : undefined;
+}
+
+function readOptionalNumber(args: ToolArguments | undefined, key: string): number | undefined {
+  const value = args?.[key];
+  return typeof value === 'number' ? value : undefined;
+}
+
+function readFilter(args: ToolArguments | undefined): FilterInput {
+  const filter = args?.filter;
+  return isRecord(filter) ? (filter as FilterInput) : {};
+}
+
+function requireFilterString(filter: FilterInput, key: 'event' | 'visitor_id' | 'session_id', toolName: string): string {
+  const value = filter[key];
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error(`filter.${key} is required for ${toolName}`);
+  }
+  return value;
+}
+
+function compareMetric(current: number, previous: number) {
+  return { current, previous, change: pctChange(current, previous) };
+}
+
+export function buildComparisonTotals(current: StatisticsTotals, previous: StatisticsTotals) {
+  return {
+    visitors: compareMetric(current.visitors, previous.visitors),
+    views: compareMetric(current.views, previous.views),
+    sessions: compareMetric(current.sessions, previous.sessions),
+    bounces: compareMetric(current.bounces, previous.bounces),
+    bounce_rate: compareMetric(current.bounce_rate, previous.bounce_rate),
+    cr: compareMetric(current.cr, previous.cr),
+    custom_metric_avg: compareMetric(current.custom_metric_avg, previous.custom_metric_avg),
+    custom_metric_total: compareMetric(current.custom_metric_total, previous.custom_metric_total),
+  };
+}
+
+export async function getComparisonResponse(
+  client: StatisticsReader,
+  domainId: string,
+  args: ToolArguments | undefined
+) {
+  const scale = (readOptionalString(args, 'scale') as ScaleName | undefined) || 'day';
+  const compareMode = (readOptionalString(args, 'compare') as CompareMode | undefined) || 'previous';
+  const period = readOptionalString(args, 'period') as PeriodName | undefined;
+
+  let currentFrom: string;
+  let currentTo: string;
+  let previousFrom: string;
+  let previousTo: string;
+
+  if (period) {
+    const range = getDateRange(period);
+    currentFrom = isoDate(range.start);
+    currentTo = isoDate(range.end);
+
+    if (compareMode === 'year') {
+      const previousStart = new Date(range.start);
+      const previousEnd = new Date(range.end);
+      previousStart.setFullYear(previousStart.getFullYear() - 1);
+      previousEnd.setFullYear(previousEnd.getFullYear() - 1);
+      previousFrom = isoDate(previousStart);
+      previousTo = isoDate(previousEnd);
+    } else {
+      const lengthInDays =
+        Math.ceil((range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      const previousEnd = new Date(range.start);
+      previousEnd.setDate(previousEnd.getDate() - 1);
+      const previousStart = new Date(previousEnd);
+      previousStart.setDate(previousEnd.getDate() - (lengthInDays - 1));
+      previousFrom = isoDate(previousStart);
+      previousTo = isoDate(previousEnd);
+    }
+  } else if (
+    compareMode === 'custom' &&
+    readOptionalString(args, 'from') &&
+    readOptionalString(args, 'to') &&
+    readOptionalString(args, 'compare_from') &&
+    readOptionalString(args, 'compare_to')
+  ) {
+    currentFrom = readOptionalString(args, 'from')!;
+    currentTo = readOptionalString(args, 'to')!;
+    previousFrom = readOptionalString(args, 'compare_from')!;
+    previousTo = readOptionalString(args, 'compare_to')!;
+  } else {
+    throw new Error('Provide either period or custom from/to + compare_from/compare_to');
+  }
+
+  const [currentTotals, previousTotals, currentSeries, previousSeries] = await Promise.all([
+    client.getStatistics<StatisticsTotals>('/statistics/total', domainId, {
+      from: currentFrom,
+      to: currentTo,
+    }),
+    client.getStatistics<StatisticsTotals>('/statistics/total', domainId, {
+      from: previousFrom,
+      to: previousTo,
+    }),
+    client.getStatistics<VisitorsPoint[]>('/statistics/visitor', domainId, {
+      from: currentFrom,
+      to: currentTo,
+      scale,
+    }),
+    client.getStatistics<VisitorsPoint[]>('/statistics/visitor', domainId, {
+      from: previousFrom,
+      to: previousTo,
+      scale,
+    }),
+  ]);
+
+  return {
+    period: { from: currentFrom, to: currentTo },
+    compare_to: { from: previousFrom, to: previousTo },
+    totals: buildComparisonTotals(currentTotals, previousTotals),
+    series: { current: currentSeries, previous: previousSeries },
+  };
+}
+
 async function resolveDomainId(argId?: string): Promise<string> {
   if (argId) return argId;
   if (DEFAULT_DOMAIN_ID) return DEFAULT_DOMAIN_ID;
   const res = await api.listDomains();
   if (Array.isArray(res) && res.length > 0) return res[0].id;
-  if (!Array.isArray(res) && (res as any).id) return (res as any).id;
+  if (isDomain(res)) return res.id;
   throw new Error('No domain found. Set PIRSCH_DEFAULT_DOMAIN_ID or provide domain_id');
 }
 
@@ -34,16 +199,16 @@ const server = new Server(
   { capabilities: { tools: {} } }
 );
 
-const filterSchemaProperties: Record<string, any> = {
+const filterSchemaProperties = {
   from: { type: 'string', description: 'YYYY-MM-DD' },
   to: { type: 'string', description: 'YYYY-MM-DD' },
   from_time: { type: 'string', description: 'HH:MM (same-day only)' },
   to_time: { type: 'string', description: 'HH:MM (same-day only)' },
   tz: { type: 'string' },
   start: { type: 'number', description: 'Past seconds for active view' },
-  scale: { type: 'string', enum: ['day','week','month','year'] },
+  scale: { type: 'string', enum: ['day', 'week', 'month', 'year'] },
   hostname: { type: 'string' },
-  path: { type: 'string' },
+  path: { type: 'string', description: 'Supports Pirsch operators like ~contains, !not, and ^does-not-contain' },
   entry_path: { type: 'string' },
   exit_path: { type: 'string' },
   pattern: { type: 'string' },
@@ -57,14 +222,14 @@ const filterSchemaProperties: Record<string, any> = {
   channel: { type: 'string' },
   os: { type: 'string' },
   browser: { type: 'string' },
-  platform: { type: 'string', enum: ['desktop','mobile','unknown'] },
+  platform: { type: 'string', enum: ['desktop', 'mobile', 'unknown'] },
   screen_class: { type: 'string' },
   utm_source: { type: 'string' },
   utm_medium: { type: 'string' },
   utm_campaign: { type: 'string' },
   utm_content: { type: 'string' },
   utm_term: { type: 'string' },
-  custom_metric_type: { type: 'string', enum: ['integer','float'] },
+  custom_metric_type: { type: 'string', enum: ['integer', 'float'] },
   custom_metric_key: { type: 'string' },
   tag: { type: 'string' },
   offset: { type: 'number' },
@@ -72,224 +237,226 @@ const filterSchemaProperties: Record<string, any> = {
   include_avg_time_on_page: { type: 'boolean' },
   include_title: { type: 'boolean' },
   sort: { type: 'string' },
-  direction: { type: 'string', enum: ['asc','desc'] },
-  search: { type: 'string' },
+  direction: { type: 'string', enum: ['asc', 'desc'] },
+  search: { type: 'string', description: 'Contains search on the primary field, e.g. page path for page endpoints' },
+  keyword: { type: 'string', description: 'Google Search Console keyword filter for keyword page lookups' },
   visitor_id: { type: 'string' },
-  session_id: { type: 'string' }
+  session_id: { type: 'string' },
+} as const;
+
+const filterSchema: ToolInputSchema = {
+  type: 'object',
+  properties: filterSchemaProperties,
 };
+
+const domainIdSchema = { type: 'string' } as const;
+
+const filterToolInputSchema: ToolInputSchema = {
+  type: 'object',
+  properties: {
+    domain_id: domainIdSchema,
+    filter: filterSchema,
+  },
+};
+
+const statisticsToolConfigs: StatisticsToolConfig[] = [
+  {
+    name: 'pirsch_total',
+    description: 'Get totals for visitors, views, sessions, bounces, bounce_rate, cr, and custom metrics with filters',
+    endpoint: '/statistics/total',
+    resultKey: 'total',
+  },
+  {
+    name: 'pirsch_visitors',
+    description: 'Get visitors time series with optional scale and filters',
+    endpoint: '/statistics/visitor',
+    resultKey: 'series',
+  },
+  {
+    name: 'pirsch_pages',
+    description: 'Get page stats with sorting, search, and optional average time on page',
+    endpoint: '/statistics/page',
+    resultKey: 'pages',
+  },
+  {
+    name: 'pirsch_entry_pages',
+    description: 'Get entry page stats with sorting, search, and optional average time on page',
+    endpoint: '/statistics/page/entry',
+    resultKey: 'entry_pages',
+  },
+  {
+    name: 'pirsch_exit_pages',
+    description: 'Get exit page stats with sorting and search',
+    endpoint: '/statistics/page/exit',
+    resultKey: 'exit_pages',
+  },
+  {
+    name: 'pirsch_referrers',
+    description: 'Get referrer statistics with filters and sorting',
+    endpoint: '/statistics/referrer',
+    resultKey: 'referrers',
+  },
+  {
+    name: 'pirsch_goals',
+    description: 'Get conversion goals and their performance stats',
+    endpoint: '/statistics/goals',
+    resultKey: 'goals',
+  },
+  {
+    name: 'pirsch_events',
+    description: 'Get event statistics with counts, visitors, conversion rate, and metadata keys',
+    endpoint: '/statistics/events',
+    resultKey: 'events',
+  },
+  {
+    name: 'pirsch_event_pages',
+    description: 'Get pages on which a specific event fired. Requires filter.event',
+    endpoint: '/statistics/event/page',
+    resultKey: 'event_pages',
+    validateFilter: (filter) => {
+      requireFilterString(filter, 'event', 'pirsch_event_pages');
+    },
+  },
+  {
+    name: 'pirsch_growth',
+    description: 'Get growth rates across core metrics for the selected period',
+    endpoint: '/statistics/growth',
+    resultKey: 'growth',
+  },
+  {
+    name: 'pirsch_sessions',
+    description: 'Get session list with entry/exit pages, duration, device, and traffic source details',
+    endpoint: '/statistics/session/list',
+    resultKey: 'sessions',
+  },
+  {
+    name: 'pirsch_session_details',
+    description: 'Get chronological page views and events for a single session. Requires filter.visitor_id and filter.session_id',
+    endpoint: '/statistics/session/details',
+    resultKey: 'session_details',
+    validateFilter: (filter) => {
+      requireFilterString(filter, 'visitor_id', 'pirsch_session_details');
+      requireFilterString(filter, 'session_id', 'pirsch_session_details');
+    },
+  },
+];
+
+const statisticsToolMap = new Map(statisticsToolConfigs.map((config) => [config.name, config]));
 
 const tools: Tool[] = [
   {
     name: 'pirsch_list_domains',
     description: 'List accessible Pirsch domains to discover domain IDs',
-    inputSchema: { type: 'object', properties: { search: { type: 'string' } } }
+    inputSchema: { type: 'object', properties: { search: { type: 'string' } } },
   },
   {
     name: 'pirsch_overview',
-    description: 'Get cached overview (visitors, views, members) for a domain',
-    inputSchema: { type: 'object', properties: { domain_id: { type: 'string' } } }
+    description: 'Get cached overview statistics for a domain. Filters do not apply to this endpoint',
+    inputSchema: { type: 'object', properties: { domain_id: domainIdSchema } },
   },
-  {
-    name: 'pirsch_total',
-    description: 'Get totals for visitors, views, sessions, bounces, bounce_rate, cr with filters',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        domain_id: { type: 'string' },
-        filter: { type: 'object', properties: filterSchemaProperties }
-      }
-    }
-  },
-  {
-    name: 'pirsch_visitors',
-    description: 'Get visitors time series with optional scale and filters',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        domain_id: { type: 'string' },
-        filter: { type: 'object', properties: filterSchemaProperties }
-      }
-    }
-  },
-  {
-    name: 'pirsch_pages',
-    description: 'Get page stats with sorting, search, and optional average time on page',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        domain_id: { type: 'string' },
-        filter: { type: 'object', properties: filterSchemaProperties }
-      }
-    }
-  },
-  {
-    name: 'pirsch_referrers',
-    description: 'Get referrer statistics with filters and sorting',
-    inputSchema: { type: 'object', properties: { domain_id: { type: 'string' }, filter: { type: 'object', properties: filterSchemaProperties } } }
-  },
+  ...statisticsToolConfigs.map((config) => ({
+    name: config.name,
+    description: config.description,
+    inputSchema: filterToolInputSchema,
+  })),
   {
     name: 'pirsch_utm',
     description: 'Get UTM stats by dimension (source, medium, campaign, content, term)',
     inputSchema: {
       type: 'object',
       properties: {
-        domain_id: { type: 'string' },
-        type: { type: 'string', enum: ['source','medium','campaign','content','term'] },
-        filter: { type: 'object', properties: filterSchemaProperties }
+        domain_id: domainIdSchema,
+        type: { type: 'string', enum: ['source', 'medium', 'campaign', 'content', 'term'] },
+        filter: filterSchema,
       },
-      required: ['type']
-    }
-  },
-  {
-    name: 'pirsch_growth',
-    description: 'Get growth rates across core metrics for the selected period',
-    inputSchema: { type: 'object', properties: { domain_id: { type: 'string' }, filter: { type: 'object', properties: filterSchemaProperties } } }
+      required: ['type'],
+    },
   },
   {
     name: 'pirsch_active',
     description: 'Get active visitors and pages for the past N seconds (default 600)',
-    inputSchema: { type: 'object', properties: { domain_id: { type: 'string' }, start: { type: 'number' } } }
+    inputSchema: { type: 'object', properties: { domain_id: domainIdSchema, start: { type: 'number' } } },
   },
   {
     name: 'pirsch_compare',
-    description: 'Compare visitors time series between two periods and return deltas/growth',
+    description: 'Compare totals and visitor series between two periods using true period totals',
     inputSchema: {
       type: 'object',
       properties: {
-        domain_id: { type: 'string' },
-        period: { type: 'string', enum: ['today','yesterday','week','lastWeek','month','lastMonth'] },
-        compare: { type: 'string', enum: ['previous','year','custom'], description: 'Compare to previous period, same period last year, or custom range' },
+        domain_id: domainIdSchema,
+        period: { type: 'string', enum: ['today', 'yesterday', 'week', 'lastWeek', 'month', 'lastMonth'] },
+        compare: {
+          type: 'string',
+          enum: ['previous', 'year', 'custom'],
+          description: 'Compare to the previous period, same period last year, or a custom range',
+        },
         from: { type: 'string' },
         to: { type: 'string' },
         compare_from: { type: 'string' },
         compare_to: { type: 'string' },
-        scale: { type: 'string', enum: ['day','week','month','year'] }
-      }
-    }
-  }
+        scale: { type: 'string', enum: ['day', 'week', 'month', 'year'] },
+      },
+    },
+  },
 ];
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools }));
 
 server.setRequestHandler(CallToolRequestSchema, async (req) => {
-  const { name, arguments: args } = req.params;
+  const { name, arguments: rawArgs } = req.params;
+  const args = readArgs(rawArgs);
+
   try {
-    switch (name) {
-      case 'pirsch_list_domains': {
-        const search = args?.search as string | undefined;
-        const res = await api.listDomains(search ? { search } : undefined);
-        const arr = Array.isArray(res) ? res : [res];
-        return { content: [{ type: 'text', text: JSON.stringify({ count: arr.length, domains: arr }, null, 2) }] };
-      }
-      case 'pirsch_overview': {
-        const domainId = await resolveDomainId(args?.domain_id as string | undefined);
-        const data = await api.getOverview(domainId);
-        return { content: [{ type: 'text', text: JSON.stringify({ domain_id: domainId, overview: data }, null, 2) }] };
-      }
-      case 'pirsch_total': {
-        const domainId = await resolveDomainId(args?.domain_id as string | undefined);
-        const filter = (args?.filter || {}) as FilterInput;
-        const data = await api.getStatistics('/statistics/total', domainId, filter);
-        return { content: [{ type: 'text', text: JSON.stringify({ domain_id: domainId, total: data }, null, 2) }] };
-      }
-      case 'pirsch_visitors': {
-        const domainId = await resolveDomainId(args?.domain_id as string | undefined);
-        const filter = (args?.filter || {}) as FilterInput;
-        const data = await api.getStatistics('/statistics/visitor', domainId, filter);
-        return { content: [{ type: 'text', text: JSON.stringify({ domain_id: domainId, series: data }, null, 2) }] };
-      }
-      case 'pirsch_pages': {
-        const domainId = await resolveDomainId(args?.domain_id as string | undefined);
-        const filter = (args?.filter || {}) as FilterInput;
-        const data = await api.getStatistics('/statistics/page', domainId, filter);
-        return { content: [{ type: 'text', text: JSON.stringify({ domain_id: domainId, pages: data }, null, 2) }] };
-      }
-      case 'pirsch_referrers': {
-        const domainId = await resolveDomainId(args?.domain_id as string | undefined);
-        const filter = (args?.filter || {}) as FilterInput;
-        const data = await api.getStatistics('/statistics/referrer', domainId, filter);
-        return { content: [{ type: 'text', text: JSON.stringify({ domain_id: domainId, referrers: data }, null, 2) }] };
-      }
-      case 'pirsch_utm': {
-        const domainId = await resolveDomainId(args?.domain_id as string | undefined);
-        const filter = (args?.filter || {}) as FilterInput;
-        const type = args?.type as string;
-        const endpoint = `/statistics/utm/${type}`;
-        const data = await api.getStatistics(endpoint, domainId, filter);
-        return { content: [{ type: 'text', text: JSON.stringify({ domain_id: domainId, type, utm: data }, null, 2) }] };
-      }
-      case 'pirsch_growth': {
-        const domainId = await resolveDomainId(args?.domain_id as string | undefined);
-        const filter = (args?.filter || {}) as FilterInput;
-        const data = await api.getStatistics('/statistics/growth', domainId, filter);
-        return { content: [{ type: 'text', text: JSON.stringify({ domain_id: domainId, growth: data }, null, 2) }] };
-      }
-      case 'pirsch_active': {
-        const domainId = await resolveDomainId(args?.domain_id as string | undefined);
-        const start = (args?.start as number) ?? 600;
-        const data = await api.getActive(domainId, start);
-        return { content: [{ type: 'text', text: JSON.stringify({ domain_id: domainId, start, active: data }, null, 2) }] };
-      }
-      case 'pirsch_compare': {
-        const domainId = await resolveDomainId(args?.domain_id as string | undefined);
-        const scale = (args?.scale as 'day'|'week'|'month'|'year') || 'day';
-
-        // Determine ranges
-        let currentFrom: string, currentTo: string, previousFrom: string, previousTo: string;
-        if (args?.period) {
-          const range = getDateRange(args.period as 'today'|'yesterday'|'week'|'lastWeek'|'month'|'lastMonth');
-          currentFrom = isoDate(range.start);
-          currentTo = isoDate(range.end);
-          if (args?.compare === 'year') {
-            const prevStart = new Date(range.start);
-            const prevEnd = new Date(range.end);
-            prevStart.setFullYear(prevStart.getFullYear() - 1);
-            prevEnd.setFullYear(prevEnd.getFullYear() - 1);
-            previousFrom = isoDate(prevStart);
-            previousTo = isoDate(prevEnd);
-          } else { // previous by same length
-            const lenDays = Math.ceil((range.end.getTime() - range.start.getTime()) / (1000*60*60*24)) + 1;
-            const prevEnd = new Date(range.start);
-            prevEnd.setDate(prevEnd.getDate() - 1);
-            const prevStart = new Date(prevEnd);
-            prevStart.setDate(prevEnd.getDate() - (lenDays - 1));
-            previousFrom = isoDate(prevStart);
-            previousTo = isoDate(prevEnd);
-          }
-        } else if (args?.compare === 'custom' && args?.from && args?.to && args?.compare_from && args?.compare_to) {
-          currentFrom = args.from as string; currentTo = args.to as string;
-          previousFrom = args.compare_from as string; previousTo = args.compare_to as string;
-        } else {
-          throw new Error('Provide either period or custom from/to + compare_from/compare_to');
-        }
-
-        // Fetch both series
-        const [curr, prev] = await Promise.all([
-          api.getStatistics('/statistics/visitor', domainId, { from: currentFrom, to: currentTo, scale }),
-          api.getStatistics('/statistics/visitor', domainId, { from: previousFrom, to: previousTo, scale })
-        ]);
-
-        const currTotals = sumSeries(curr as VisitorsPoint[]);
-        const prevTotals = sumSeries(prev as VisitorsPoint[]);
-        const result = {
-          period: { from: currentFrom, to: currentTo },
-          compare_to: { from: previousFrom, to: previousTo },
-          totals: {
-            visitors: { current: currTotals.visitors, previous: prevTotals.visitors, change: pctChange(currTotals.visitors, prevTotals.visitors) },
-            views: { current: currTotals.views, previous: prevTotals.views, change: pctChange(currTotals.views, prevTotals.views) },
-            sessions: { current: currTotals.sessions, previous: prevTotals.sessions, change: pctChange(currTotals.sessions, prevTotals.sessions) },
-            bounces: { current: currTotals.bounces, previous: prevTotals.bounces, change: pctChange(currTotals.bounces, prevTotals.bounces) }
-          },
-          series: { current: curr, previous: prev }
-        };
-
-        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
-      }
-      default:
-        throw new Error(`Unknown tool: ${name}`);
+    if (name === 'pirsch_list_domains') {
+      const search = readOptionalString(args, 'search');
+      const res = await api.listDomains(search ? { search } : undefined);
+      const arr = Array.isArray(res) ? res : [res];
+      return formatResponse({ count: arr.length, domains: arr });
     }
-  } catch (err: any) {
-    return { content: [{ type: 'text', text: JSON.stringify({ error: true, message: err.message || 'An error occurred' }, null, 2) }] };
+
+    if (name === 'pirsch_overview') {
+      const domainId = await resolveDomainId(readOptionalString(args, 'domain_id'));
+      const data = await api.getOverview(domainId);
+      return formatResponse({ domain_id: domainId, overview: data });
+    }
+
+    const statisticsTool = statisticsToolMap.get(name);
+    if (statisticsTool) {
+      const domainId = await resolveDomainId(readOptionalString(args, 'domain_id'));
+      const filter = readFilter(args);
+      statisticsTool.validateFilter?.(filter);
+      const data = await api.getStatistics(statisticsTool.endpoint, domainId, filter);
+      return formatResponse({ domain_id: domainId, [statisticsTool.resultKey]: data });
+    }
+
+    if (name === 'pirsch_utm') {
+      const domainId = await resolveDomainId(readOptionalString(args, 'domain_id'));
+      const filter = readFilter(args);
+      const type = readOptionalString(args, 'type');
+      if (!type) {
+        throw new Error('type is required for pirsch_utm');
+      }
+      const endpoint = `/statistics/utm/${type}`;
+      const data = await api.getStatistics(endpoint, domainId, filter);
+      return formatResponse({ domain_id: domainId, type, utm: data });
+    }
+
+    if (name === 'pirsch_active') {
+      const domainId = await resolveDomainId(readOptionalString(args, 'domain_id'));
+      const start = readOptionalNumber(args, 'start') ?? 600;
+      const data = await api.getActive(domainId, start);
+      return formatResponse({ domain_id: domainId, start, active: data });
+    }
+
+    if (name === 'pirsch_compare') {
+      const domainId = await resolveDomainId(readOptionalString(args, 'domain_id'));
+      const result = await getComparisonResponse(api, domainId, args);
+      return formatResponse(result);
+    }
+
+    throw new Error(`Unknown tool: ${name}`);
+  } catch (error) {
+    return formatResponse({ error: true, message: getErrorMessage(error) });
   }
 });
 
@@ -299,7 +466,12 @@ async function main() {
   console.error('Pirsch MCP server running');
 }
 
-main().catch((e) => {
-  console.error('Server error:', e);
-  process.exit(1);
-});
+const isDirectExecution =
+  typeof process.argv[1] === 'string' && import.meta.url === new URL(process.argv[1], 'file://').href;
+
+if (isDirectExecution) {
+  main().catch((error: unknown) => {
+    console.error('Server error:', error);
+    process.exit(1);
+  });
+}

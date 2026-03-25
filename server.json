@@ -26,11 +26,11 @@
     },
     {
       "name": "pirsch_overview",
-      "description": "Get a high-level overview for a domain"
+      "description": "Get the cached overview snapshot for a domain; filters do not apply"
     },
     {
       "name": "pirsch_total",
-      "description": "Get total visitor and pageview counts"
+      "description": "Get total visitors, views, sessions, bounce rate, conversion rate, and custom metrics"
     },
     {
       "name": "pirsch_visitors",
@@ -41,8 +41,28 @@
       "description": "Get page-level analytics"
     },
     {
+      "name": "pirsch_entry_pages",
+      "description": "Get entry page analytics"
+    },
+    {
+      "name": "pirsch_exit_pages",
+      "description": "Get exit page analytics"
+    },
+    {
       "name": "pirsch_referrers",
       "description": "Get referrer statistics"
+    },
+    {
+      "name": "pirsch_goals",
+      "description": "Get conversion goals and their performance"
+    },
+    {
+      "name": "pirsch_events",
+      "description": "Get event statistics"
+    },
+    {
+      "name": "pirsch_event_pages",
+      "description": "Get pages on which a specific event fired"
     },
     {
       "name": "pirsch_utm",
@@ -57,8 +77,16 @@
       "description": "Get currently active visitors"
     },
     {
+      "name": "pirsch_sessions",
+      "description": "Get session list with entry, exit, and device/source details"
+    },
+    {
+      "name": "pirsch_session_details",
+      "description": "Get the full page-view and event timeline for a single session"
+    },
+    {
       "name": "pirsch_compare",
-      "description": "Compare traffic between two time periods"
+      "description": "Compare true period totals and visitor series between two time periods"
     }
   ]
 }

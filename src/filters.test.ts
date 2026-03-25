@@ -142,6 +142,7 @@ describe('buildFilterParams', () => {
         sort: 'visitors',
         direction: 'desc',
         search: 'blog',
+        keyword: 'wordpress plugin',
       },
       domainId
     );
@@ -151,6 +152,7 @@ describe('buildFilterParams', () => {
     expect(params.get('sort')).toBe('visitors');
     expect(params.get('direction')).toBe('desc');
     expect(params.get('search')).toBe('blog');
+    expect(params.get('keyword')).toBe('wordpress plugin');
   });
 
   it('should set boolean parameters as strings', () => {

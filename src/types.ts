@@ -53,8 +53,20 @@ export interface FilterInput {
   sort?: string; // visitors, views, etc.
   direction?: 'asc' | 'desc';
   search?: string;
+  keyword?: string;
   visitor_id?: string;
   session_id?: string;
+}
+
+export interface StatisticsTotals {
+  visitors: number;
+  views: number;
+  sessions: number;
+  bounces: number;
+  bounce_rate: number;
+  cr: number;
+  custom_metric_avg: number;
+  custom_metric_total: number;
 }
 
 export interface VisitorsPoint {
@@ -69,4 +81,3 @@ export interface VisitorsPoint {
   bounce_rate: number;
   cr: number;
 }
-

@@ -72,7 +72,7 @@ export class PirschAPI {
   private async request<T>(
     method: string,
     endpoint: string,
-    options?: { params?: URLSearchParams; body?: any },
+    options?: { params?: URLSearchParams; body?: unknown },
     retries = 2
   ): Promise<T> {
     await this.ensureToken();
@@ -126,25 +126,24 @@ export class PirschAPI {
   }
 
   // Overview (cached totals and members)
-  async getOverview(domainId: string): Promise<any> {
+  async getOverview<T = unknown>(domainId: string): Promise<T> {
     const params = new URLSearchParams({ id: domainId });
-    return this.request<any>('GET', '/statistics/overview', { params });
+    return this.request<T>('GET', '/statistics/overview', { params });
   }
 
   // Generic statistics endpoint helper using filters
-  async getStatistics(
+  async getStatistics<T = unknown>(
     endpoint: string,
     domainId: string,
     filter: FilterInput = {}
-  ): Promise<any> {
+  ): Promise<T> {
     const params = buildFilterParams(filter, domainId, { tz: process.env.PIRSCH_TIMEZONE });
-    return this.request<any>('GET', endpoint, { params });
+    return this.request<T>('GET', endpoint, { params });
   }
 
   // Active visitors
-  async getActive(domainId: string, startSeconds?: number): Promise<any> {
+  async getActive<T = unknown>(domainId: string, startSeconds?: number): Promise<T> {
     const params = buildFilterParams({ start: startSeconds }, domainId, { tz: process.env.PIRSCH_TIMEZONE });
-    return this.request<any>('GET', '/statistics/active', { params });
+    return this.request<T>('GET', '/statistics/active', { params });
   }
 }
-
