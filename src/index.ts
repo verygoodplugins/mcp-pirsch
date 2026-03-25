@@ -80,12 +80,66 @@ function readFilter(args: ToolArguments | undefined): FilterInput {
   return isRecord(filter) ? (filter as FilterInput) : {};
 }
 
+function readFilterAlias(
+  args: ToolArguments | undefined,
+  nestedFilter: FilterInput,
+  key: 'event_name'
+): string | undefined {
+  const nestedValue = nestedFilter[key];
+  if (typeof nestedValue === 'string' && nestedValue.trim() !== '') {
+    return nestedValue;
+  }
+
+  const topLevelValue = args?.[key];
+  return typeof topLevelValue === 'string' && topLevelValue.trim() !== '' ? topLevelValue : undefined;
+}
+
+export function normalizeFilterArgs(args: ToolArguments | undefined): FilterInput {
+  const nestedFilter = readFilter(args);
+  const mergedFilter: FilterInput = { ...nestedFilter };
+  const mergedFilterRecord = mergedFilter as Record<string, unknown>;
+
+  for (const key of Object.keys(filterSchemaProperties) as Array<keyof FilterInput>) {
+    const value = args?.[key];
+    if (value !== undefined && mergedFilter[key] === undefined) {
+      mergedFilterRecord[key] = value;
+    }
+  }
+
+  if (!mergedFilter.event) {
+    const eventAlias = readFilterAlias(args, nestedFilter, 'event_name');
+    if (eventAlias) {
+      mergedFilter.event = eventAlias;
+    }
+  }
+
+  delete mergedFilter.event_name;
+
+  return mergedFilter;
+}
+
 function requireFilterString(filter: FilterInput, key: 'event' | 'visitor_id' | 'session_id', toolName: string): string {
   const value = filter[key];
   if (typeof value !== 'string' || value.trim() === '') {
     throw new Error(`filter.${key} is required for ${toolName}`);
   }
   return value;
+}
+
+function buildFilterCapableInputSchema(
+  extraProperties: Record<string, SchemaProperty> = {},
+  required?: string[]
+): ToolInputSchema {
+  return {
+    type: 'object',
+    properties: {
+      domain_id: domainIdSchema,
+      filter: filterSchema,
+      ...filterSchemaProperties,
+      ...extraProperties,
+    },
+    ...(required ? { required } : {}),
+  };
 }
 
 function compareMetric(current: number, previous: number) {
@@ -213,6 +267,7 @@ const filterSchemaProperties = {
   exit_path: { type: 'string' },
   pattern: { type: 'string' },
   event: { type: 'string' },
+  event_name: { type: 'string', description: 'Alias for event when callers use event_name instead of event' },
   event_meta_key: { type: 'string' },
   language: { type: 'string' },
   country: { type: 'string' },
@@ -251,13 +306,7 @@ const filterSchema: ToolInputSchema = {
 
 const domainIdSchema = { type: 'string' } as const;
 
-const filterToolInputSchema: ToolInputSchema = {
-  type: 'object',
-  properties: {
-    domain_id: domainIdSchema,
-    filter: filterSchema,
-  },
-};
+const filterToolInputSchema = buildFilterCapableInputSchema();
 
 const statisticsToolConfigs: StatisticsToolConfig[] = [
   {
@@ -362,15 +411,10 @@ const tools: Tool[] = [
   {
     name: 'pirsch_utm',
     description: 'Get UTM stats by dimension (source, medium, campaign, content, term)',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        domain_id: domainIdSchema,
-        type: { type: 'string', enum: ['source', 'medium', 'campaign', 'content', 'term'] },
-        filter: filterSchema,
-      },
-      required: ['type'],
-    },
+    inputSchema: buildFilterCapableInputSchema(
+      { type: { type: 'string', enum: ['source', 'medium', 'campaign', 'content', 'term'] } },
+      ['type']
+    ),
   },
   {
     name: 'pirsch_active',
@@ -423,7 +467,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
     const statisticsTool = statisticsToolMap.get(name);
     if (statisticsTool) {
       const domainId = await resolveDomainId(readOptionalString(args, 'domain_id'));
-      const filter = readFilter(args);
+      const filter = normalizeFilterArgs(args);
       statisticsTool.validateFilter?.(filter);
       const data = await api.getStatistics(statisticsTool.endpoint, domainId, filter);
       return formatResponse({ domain_id: domainId, [statisticsTool.resultKey]: data });
@@ -431,7 +475,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
 
     if (name === 'pirsch_utm') {
       const domainId = await resolveDomainId(readOptionalString(args, 'domain_id'));
-      const filter = readFilter(args);
+      const filter = normalizeFilterArgs(args);
       const type = readOptionalString(args, 'type');
       if (!type) {
         throw new Error('type is required for pirsch_utm');

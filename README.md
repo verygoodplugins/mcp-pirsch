@@ -191,6 +191,8 @@ Get total metrics for a specific period.
 - `domain_id` (optional): Target domain ID
 - `filter` (optional): Filter object with date range, dimensions, etc.
 
+Most analytics tools accept filter fields either inside `filter` or as top-level arguments. Both forms are supported for MCP client compatibility.
+
 **Returns:** Total visitors, views, sessions, bounces, bounce rate, conversion rate, and custom metric aggregates
 
 #### `pirsch_visitors`
@@ -218,6 +220,7 @@ Get top pages with performance metrics.
   - `include_title`: Include page titles
 
 **Tip:** Use `filter.search` for contains matching in page paths, or Pirsch operators in `filter.path` such as `~/news/` for prefix/contains matching. Exact `path: "/news/"` only matches that path.
+Top-level `search` and `path` arguments are also accepted.
 
 #### `pirsch_entry_pages`
 Get entry page analytics.
@@ -252,6 +255,8 @@ Get pages on which a specific event fired.
 **Parameters:**
 - `domain_id` (optional): Target domain ID
 - `filter` (required): Standard filter parameters, including `event`
+
+The event can also be passed as a top-level `event` argument. If your client uses goal payload field names, `event_name` is accepted as an alias and normalized to `event`.
 
 #### `pirsch_utm`
 Analyze UTM campaign parameters.

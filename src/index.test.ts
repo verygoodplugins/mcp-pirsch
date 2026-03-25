@@ -4,7 +4,7 @@ import type { StatisticsTotals, VisitorsPoint } from './types.js';
 process.env.PIRSCH_CLIENT_ID = process.env.PIRSCH_CLIENT_ID || 'test-client-id';
 process.env.PIRSCH_CLIENT_SECRET = process.env.PIRSCH_CLIENT_SECRET || 'test-client-secret';
 
-const { getComparisonResponse } = await import('./index.js');
+const { getComparisonResponse, normalizeFilterArgs } = await import('./index.js');
 
 describe('getComparisonResponse', () => {
   it('uses statistics/total for totals and statistics/visitor for chart series', async () => {
@@ -89,5 +89,59 @@ describe('getComparisonResponse', () => {
       'Provide either period or custom from/to + compare_from/compare_to'
     );
     expect(getStatistics).not.toHaveBeenCalled();
+  });
+});
+
+describe('normalizeFilterArgs', () => {
+  it('merges top-level filter args for callers that do not nest filter', () => {
+    expect(
+      normalizeFilterArgs({
+        from: '2024-03-25',
+        to: '2026-03-25',
+        search: '/news/',
+        limit: 5,
+        sort: 'visitors',
+        direction: 'desc',
+      })
+    ).toEqual({
+      from: '2024-03-25',
+      to: '2026-03-25',
+      search: '/news/',
+      limit: 5,
+      sort: 'visitors',
+      direction: 'desc',
+    });
+  });
+
+  it('prefers explicit nested filter values and supports event_name alias', () => {
+    expect(
+      normalizeFilterArgs({
+        event: 'Top Level Event',
+        event_name: 'Order',
+        filter: {
+          search: '/tutorials/',
+          event_name: 'Live Demo Signup',
+          limit: 10,
+        },
+      })
+    ).toEqual({
+      search: '/tutorials/',
+      event: 'Top Level Event',
+      limit: 10,
+    });
+
+    expect(
+      normalizeFilterArgs({
+        event_name: 'Order',
+        filter: {
+          from: '2024-03-25',
+          to: '2026-03-25',
+        },
+      })
+    ).toEqual({
+      from: '2024-03-25',
+      to: '2026-03-25',
+      event: 'Order',
+    });
   });
 });

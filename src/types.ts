@@ -27,6 +27,7 @@ export interface FilterInput {
   exit_path?: string;
   pattern?: string;
   event?: string;
+  event_name?: string; // MCP compatibility alias; normalized to event before API requests
   event_meta_key?: string;
   language?: string;
   country?: string;
