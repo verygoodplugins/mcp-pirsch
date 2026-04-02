@@ -55,8 +55,8 @@
     "server.json"
   ],
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.27.1",
-    "dotenv": "^17.2.3",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "dotenv": "^17.4.0",
     "node-fetch": "^3.3.2"
   },
   "devDependencies": {
