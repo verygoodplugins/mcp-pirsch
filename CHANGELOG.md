@@ -2,6 +2,13 @@
 
 This changelog is automatically managed by [Release Please](https://github.com/googleapis/release-please).
 
+## [0.1.2](https://github.com/verygoodplugins/mcp-pirsch/compare/mcp-pirsch-v0.1.1...mcp-pirsch-v0.1.2) (2026-04-06)
+
+
+### Bug Fixes
+
+* **ci:** ignore major version bumps for coupled toolchain packages ([#17](https://github.com/verygoodplugins/mcp-pirsch/issues/17)) ([6937fb0](https://github.com/verygoodplugins/mcp-pirsch/commit/6937fb0dd1301f512d65350ce07e854fd8be325f))
+
 ## [0.1.1](https://github.com/verygoodplugins/mcp-pirsch/compare/mcp-pirsch-v0.1.0...mcp-pirsch-v0.1.1) (2026-03-25)
 
 
