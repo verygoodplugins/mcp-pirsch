@@ -3,7 +3,7 @@
   "name": "io.github.verygoodplugins/mcp-pirsch",
   "title": "MCP Pirsch",
   "description": "Pirsch Analytics with natural language queries and trend analysis",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "websiteUrl": "https://verygoodplugins.com/?utm_source=mcp-registry",
   "repository": {
     "url": "https://github.com/verygoodplugins/mcp-pirsch",
@@ -13,7 +13,7 @@
     {
       "registryType": "npm",
       "identifier": "@verygoodplugins/mcp-pirsch",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "transport": {
         "type": "stdio"
       }
