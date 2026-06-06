@@ -4,7 +4,7 @@ This file provides guidance to coding agents (Claude Code, Cursor, Codex, and ot
 
 ## Project Overview
 
-MCP Pirsch Server - A Model Context Protocol server that provides analytics tools for Pirsch Analytics. It enables natural language queries, comparisons, and trend analysis of website traffic through an MCP interface. The server speaks MCP over stdio (`src/index.ts:1`).
+MCP Pirsch Server - A Model Context Protocol server that provides analytics tools for Pirsch Analytics. It enables natural language queries, comparisons, and trend analysis of website traffic through an MCP interface. The server speaks MCP over stdio (`src/index.ts:623`).
 
 ## Development Commands
 
@@ -95,7 +95,7 @@ Required environment variables (read in `src/index.ts:12`):
 - `PIRSCH_CLIENT_SECRET`: OAuth client secret from Pirsch
 
 Optional:
-- `PIRSCH_DEFAULT_DOMAIN_ID`: Default domain to query (auto-detects first domain if not set — `src/index.ts:14`)
+- `PIRSCH_DEFAULT_DOMAIN_ID`: Default domain to query (auto-detects first domain if not set — `src/index.ts:349`)
 - `PIRSCH_TIMEZONE`: Default timezone passed to filter params (e.g. 'Europe/Berlin' — `src/pirsch-api.ts:140`)
 - `PIRSCH_TOKEN_SKEW_MS`: Token refresh buffer in ms (default 60000 — `src/pirsch-api.ts:28`)
 
