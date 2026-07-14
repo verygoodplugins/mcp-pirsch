@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { realpathSync } from 'fs';
+import { pathToFileURL } from 'url';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, Tool } from '@modelcontextprotocol/sdk/types.js';
@@ -625,10 +627,23 @@ async function main() {
   console.error('Pirsch MCP server running');
 }
 
-const isDirectExecution =
-  typeof process.argv[1] === 'string' && import.meta.url === new URL(process.argv[1], 'file://').href;
+function isDirectExecution(): boolean {
+  if (typeof process.argv[1] !== 'string') {
+    return false;
+  }
 
-if (isDirectExecution) {
+  try {
+    // npm/npx invoke this file through a symlinked bin (e.g. node_modules/.bin/mcp-pirsch),
+    // so process.argv[1] is the symlink path while import.meta.url is already resolved to
+    // the real target. Resolve the symlink before comparing or this always evaluates false
+    // under npx, main() never runs, and the process exits cleanly with no output.
+    return pathToFileURL(realpathSync(process.argv[1])).href === import.meta.url;
+  } catch {
+    return false;
+  }
+}
+
+if (isDirectExecution()) {
   main().catch((error: unknown) => {
     console.error('Server error:', error);
     process.exit(1);
