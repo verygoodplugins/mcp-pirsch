@@ -621,11 +621,14 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
 });
 
 async function main() {
+  // Capture before any await — process.ppid is dynamic.
+  const parentPid = process.ppid;
   const transport = new StdioServerTransport();
   installStdioLifecycle({
     transport,
     onCloseAssignable: server,
     envName: 'PIRSCH_PARENT_WATCHDOG_MS',
+    parentPid,
   });
   await server.connect(transport);
   console.error('Pirsch MCP server running');
