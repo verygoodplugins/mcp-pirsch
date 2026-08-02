@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 const distEntry = join(projectRoot, 'dist', 'index.js');
+const typescriptCli = join(projectRoot, 'node_modules', 'typescript', 'bin', 'tsc');
 
 function runViaPath(entryPath: string, flags: string[] = []): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -58,7 +59,10 @@ describe('CLI entry-point detection', () => {
   const tempDirs: string[] = [];
 
   beforeAll(() => {
-    execFileSync('npm', ['run', 'build'], { cwd: projectRoot, stdio: 'inherit' });
+    execFileSync(process.execPath, [typescriptCli, '-p', 'tsconfig.build.json'], {
+      cwd: projectRoot,
+      stdio: 'inherit',
+    });
   });
 
   afterEach(() => {
