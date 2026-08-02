@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { realpathSync } from 'fs';
+import { resolve } from 'path';
 import { pathToFileURL } from 'url';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -637,7 +638,14 @@ function isDirectExecution(): boolean {
     // so process.argv[1] is the symlink path while import.meta.url is already resolved to
     // the real target. Resolve the symlink before comparing or this always evaluates false
     // under npx, main() never runs, and the process exits cleanly with no output.
-    return pathToFileURL(realpathSync(process.argv[1])).href === import.meta.url;
+    const entrypointPath = resolve(process.argv[1]);
+    const entrypointUrls = [entrypointPath, realpathSync(entrypointPath)].map((path) =>
+      pathToFileURL(path).href
+    );
+
+    // `--preserve-symlinks-main` keeps the symlink in import.meta.url, while
+    // the default Node behavior resolves it. Accept both representations.
+    return entrypointUrls.includes(import.meta.url);
   } catch {
     return false;
   }

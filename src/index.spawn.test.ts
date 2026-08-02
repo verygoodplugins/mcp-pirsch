@@ -1,9 +1,8 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import { spawn, type ChildProcess } from 'child_process';
-import { mkdtempSync, symlinkSync, existsSync, rmSync } from 'fs';
-import { tmpdir } from 'os';
-import { join } from 'path';
-import { fileURLToPath } from 'url';
+import { describe, it, expect, afterEach, beforeAll } from 'vitest';
+import { execFileSync, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { mkdtempSync, rmSync, symlinkSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // Regression test for the npx/npm bin invocation path: node_modules/.bin/mcp-pirsch
 // is a symlink to dist/index.js. Before the fix, the entry-point guard compared
@@ -13,11 +12,12 @@ import { fileURLToPath } from 'url';
 // exactly the "process exited unexpectedly (code: 0)" failure seen when AutoHub
 // spawns this server via `npx -y @verygoodplugins/mcp-pirsch@latest`.
 
-const distEntry = fileURLToPath(new URL('../dist/index.js', import.meta.url));
+const projectRoot = fileURLToPath(new URL('../', import.meta.url));
+const distEntry = join(projectRoot, 'dist', 'index.js');
 
-function runViaPath(entryPath: string): Promise<{ stderr: string; exited: boolean }> {
+function runViaPath(entryPath: string, flags: string[] = []): Promise<string> {
   return new Promise((resolve, reject) => {
-    const child: ChildProcess = spawn(process.execPath, [entryPath], {
+    const child: ChildProcessWithoutNullStreams = spawn(process.execPath, [...flags, entryPath], {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: {
         ...process.env,
@@ -27,27 +27,39 @@ function runViaPath(entryPath: string): Promise<{ stderr: string; exited: boolea
     });
 
     let stderr = '';
-    let exited = false;
+    let settled = false;
+    const finish = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      child.kill();
+      callback();
+    };
+    const timer = setTimeout(() => {
+      finish(() => reject(new Error(`Timed out waiting for server start. stderr so far: ${stderr}`)));
+    }, 8_000);
 
-    child.stderr?.on('data', (chunk) => {
+    child.stderr.on('data', (chunk: Buffer) => {
       stderr += chunk.toString();
-    });
-    child.on('error', reject);
-    child.on('exit', () => {
-      exited = true;
-    });
-
-    setTimeout(() => {
-      if (!exited) {
-        child.kill();
+      if (stderr.includes('Pirsch MCP server running')) {
+        finish(() => resolve(stderr));
       }
-      resolve({ stderr, exited });
-    }, 1000);
+    });
+    child.on('error', (error) => {
+      finish(() => reject(error));
+    });
+    child.on('exit', (code) => {
+      finish(() => reject(new Error(`Server process exited early with code ${code}. stderr: ${stderr}`)));
+    });
   });
 }
 
 describe('CLI entry-point detection', () => {
   const tempDirs: string[] = [];
+
+  beforeAll(() => {
+    execFileSync('npm', ['run', 'build'], { cwd: projectRoot, stdio: 'inherit' });
+  });
 
   afterEach(() => {
     while (tempDirs.length > 0) {
@@ -58,24 +70,28 @@ describe('CLI entry-point detection', () => {
     }
   });
 
-  it('starts the server when invoked directly (dist/index.js exists)', () => {
-    expect(existsSync(distEntry)).toBe(true);
-  });
-
-  it('starts the server when invoked directly via node dist/index.js', async () => {
-    const { stderr, exited } = await runViaPath(distEntry);
-    expect(stderr).toContain('Pirsch MCP server running');
-    expect(exited).toBe(false);
+  it('starts the server when invoked directly', async () => {
+    await expect(runViaPath(distEntry)).resolves.toContain('Pirsch MCP server running');
   });
 
   it('starts the server when invoked through a symlinked bin (npm/npx bin shim)', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'mcp-pirsch-bin-'));
+    const dir = mkdtempSync(join(projectRoot, '.mcp-pirsch-bin-'));
     tempDirs.push(dir);
     const binPath = join(dir, 'mcp-pirsch');
     symlinkSync(distEntry, binPath);
 
-    const { stderr, exited } = await runViaPath(binPath);
-    expect(stderr).toContain('Pirsch MCP server running');
-    expect(exited).toBe(false);
+    await expect(runViaPath(binPath)).resolves.toContain('Pirsch MCP server running');
+  });
+
+  it('starts the server through a preserved symlinked main module', async () => {
+    // Keep the symlink beside the built entry so relative ESM imports retain
+    // the package layout while Node preserves the main-module symlink path.
+    const binPath = join(projectRoot, 'dist', '.mcp-pirsch-bin');
+    tempDirs.push(binPath);
+    symlinkSync(distEntry, binPath);
+
+    await expect(runViaPath(binPath, ['--preserve-symlinks-main'])).resolves.toContain(
+      'Pirsch MCP server running'
+    );
   });
 });
