@@ -1,8 +1,20 @@
 import type { VisitorsPoint } from './types.js';
 
-export function getDateRange(period: 'today' | 'yesterday' | 'week' | 'lastWeek' | 'month' | 'lastMonth') {
-  const now = new Date();
-  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+export type PirschPeriod = 'today' | 'yesterday' | 'week' | 'lastWeek' | 'month' | 'lastMonth';
+
+function dateInTimezone(now: Date, timezone: string): Date {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+  const value = Object.fromEntries(parts.filter((part) => part.type !== 'literal').map((part) => [part.type, part.value]));
+  return new Date(Date.UTC(Number(value.year), Number(value.month) - 1, Number(value.day)));
+}
+
+export function getDateRange(period: PirschPeriod, timezone = 'UTC', now = new Date()) {
+  const start = dateInTimezone(now, timezone);
   const end = new Date(start);
 
   switch (period) {
