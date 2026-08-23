@@ -1,96 +1,8 @@
-export interface PirschTokenResponse {
-  access_token: string;
-  expires_at: string; // ISO UTC
-}
-
-export interface Domain {
-  id: string;
-  hostname: string;
-  subdomain: string | null;
-  custom_domain?: string | null;
-  display_name?: string | null;
-  timezone?: string | null;
-}
-
-export interface FilterInput {
-  id?: string; // domain id (will be injected if omitted)
-  from?: string;
-  to?: string;
-  from_time?: string;
-  to_time?: string;
-  tz?: string;
-  start?: number;
-  scale?: 'day' | 'week' | 'month' | 'year';
-  hostname?: string;
-  path?: string;
-  path_prefix?: string; // MCP-local prefix matcher for page-style tools; not sent to the Pirsch API
-  entry_path?: string;
-  exit_path?: string;
-  pattern?: string;
-  event?: string;
-  event_name?: string; // MCP compatibility alias; normalized to event before API requests
-  event_meta_key?: string;
-  language?: string;
-  country?: string;
-  city?: string;
-  referrer?: string;
-  referrer_name?: string;
-  channel?: string;
-  os?: string;
-  browser?: string;
-  platform?: 'desktop' | 'mobile' | 'unknown';
-  screen_class?: 'XXL' | 'XL' | 'L' | 'M' | 'S' | string;
-  utm_source?: string;
-  utm_medium?: string;
-  utm_campaign?: string;
-  utm_content?: string;
-  utm_term?: string;
-  custom_metric_type?: 'integer' | 'float';
-  custom_metric_key?: string;
-  tag?: string;
-  offset?: number;
-  limit?: number;
-  include_avg_time_on_page?: boolean;
-  include_title?: boolean;
-  sort?: string; // visitors, views, etc.
-  direction?: 'asc' | 'desc';
-  search?: string;
-  keyword?: string;
-  visitor_id?: string;
-  session_id?: string;
-}
-
-export interface StatisticsTotals {
-  visitors: number;
-  views: number;
-  sessions: number;
-  bounces: number;
-  bounce_rate: number;
-  cr: number;
-  custom_metric_avg: number;
-  custom_metric_total: number;
-}
-
-export interface VisitorsPoint {
-  day?: string | null;
-  week?: string | null;
-  month?: string | null;
-  year?: string | null;
-  visitors: number;
-  views: number;
-  sessions: number;
-  bounces: number;
-  bounce_rate: number;
-  cr: number;
-}
-
-/** Credentials for the v1 read client. Kept separate from legacy tool inputs. */
 export interface PirschCredentials {
   clientId?: string;
   clientSecret?: string;
 }
 
-/** The intentionally small, account-safe domain view exposed by MCP. */
 export interface SafeDomain {
   id: string;
   hostname?: string;
@@ -98,7 +10,6 @@ export interface SafeDomain {
   timezone?: string;
 }
 
-/** Camel-cased v1 filters used by the new client and future MCP v2 tools. */
 export interface PirschFilter {
   from?: string;
   to?: string;
@@ -143,4 +54,28 @@ export interface PirschFilter {
   keyword?: string;
   visitorId?: string;
   sessionId?: string;
+}
+
+export interface StatisticsTotals {
+  visitors?: number;
+  views?: number;
+  sessions?: number;
+  bounces?: number;
+  bounce_rate?: number;
+  cr?: number;
+  [key: string]: unknown;
+}
+
+export interface VisitorsPoint {
+  day?: string | null;
+  week?: string | null;
+  month?: string | null;
+  year?: string | null;
+  visitors?: number;
+  views?: number;
+  sessions?: number;
+  bounces?: number;
+  bounce_rate?: number;
+  cr?: number;
+  [key: string]: unknown;
 }

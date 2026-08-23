@@ -1,4 +1,4 @@
-import { buildV1FilterParams, validateV1Filter } from './filters.js';
+import { buildFilterParams, validateV1Filter } from './filters.js';
 import type { PirschCredentials, PirschFilter, SafeDomain } from './types.js';
 
 const API_BASE_URL = 'https://api.pirsch.io/api/v1/';
@@ -88,7 +88,7 @@ export class PirschClient {
 
   async get<T = unknown>(endpoint: string, domainId: string, filter: PirschFilter = {}): Promise<T> {
     validateV1Filter(filter);
-    return this.request<T>(endpoint, buildV1FilterParams(filter, domainId, this.timezone));
+    return this.request<T>(endpoint, buildFilterParams(filter, domainId, this.timezone));
   }
 
   private hasUsableToken(): boolean {

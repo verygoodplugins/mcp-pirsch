@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.verygoodplugins/mcp-pirsch",
   "title": "MCP Pirsch",
-  "description": "Pirsch Analytics with natural language queries and trend analysis",
+  "description": "Read-only Pirsch Analytics API v1 queries, safe domain discovery, and period comparisons.",
   "version": "0.1.2",
   "websiteUrl": "https://verygoodplugins.com/?utm_source=mcp-registry",
   "repository": {
@@ -16,77 +16,55 @@
       "version": "0.1.2",
       "transport": {
         "type": "stdio"
-      }
+      },
+      "environmentVariables": [
+        {
+          "name": "PIRSCH_CLIENT_ID",
+          "description": "Pirsch OAuth API client ID with read access",
+          "isRequired": true,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "PIRSCH_CLIENT_SECRET",
+          "description": "Pirsch OAuth API client secret",
+          "isRequired": true,
+          "format": "string",
+          "isSecret": true
+        },
+        {
+          "name": "PIRSCH_DEFAULT_DOMAIN_ID",
+          "description": "Optional default domain ID; queries otherwise require domainId",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "PIRSCH_TIMEZONE",
+          "description": "Optional IANA timezone used when a request omits timezone",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        }
+      ]
     }
   ],
   "tools": [
     {
       "name": "pirsch_list_domains",
-      "description": "List all domains in your Pirsch account"
+      "description": "List safe summaries of accessible Pirsch domains"
     },
     {
-      "name": "pirsch_overview",
-      "description": "Get the cached overview snapshot for a domain; filters do not apply"
+      "name": "pirsch_query_statistics",
+      "description": "Query one documented Pirsch Analytics API v1 metric"
     },
     {
-      "name": "pirsch_total",
-      "description": "Get total visitors, views, sessions, bounce rate, conversion rate, and custom metrics"
+      "name": "pirsch_list_filter_options",
+      "description": "List allowed values for a Pirsch filter dimension"
     },
     {
-      "name": "pirsch_visitors",
-      "description": "Get visitor time-series data"
-    },
-    {
-      "name": "pirsch_pages",
-      "description": "Get page-level analytics"
-    },
-    {
-      "name": "pirsch_entry_pages",
-      "description": "Get entry page analytics"
-    },
-    {
-      "name": "pirsch_exit_pages",
-      "description": "Get exit page analytics"
-    },
-    {
-      "name": "pirsch_referrers",
-      "description": "Get referrer statistics"
-    },
-    {
-      "name": "pirsch_goals",
-      "description": "Get conversion goals and their performance"
-    },
-    {
-      "name": "pirsch_events",
-      "description": "Get event statistics"
-    },
-    {
-      "name": "pirsch_event_pages",
-      "description": "Get pages on which a specific event fired"
-    },
-    {
-      "name": "pirsch_utm",
-      "description": "Get UTM campaign statistics"
-    },
-    {
-      "name": "pirsch_growth",
-      "description": "Get growth rates for key metrics"
-    },
-    {
-      "name": "pirsch_active",
-      "description": "Get currently active visitors"
-    },
-    {
-      "name": "pirsch_sessions",
-      "description": "Get session list with entry, exit, and device/source details"
-    },
-    {
-      "name": "pirsch_session_details",
-      "description": "Get the full page-view and event timeline for a single session"
-    },
-    {
-      "name": "pirsch_compare",
-      "description": "Compare true period totals and visitor series between two time periods"
+      "name": "pirsch_compare_periods",
+      "description": "Compare totals and visitor series across two periods"
     }
   ]
 }

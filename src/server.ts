@@ -1,4 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/server';
+import { z } from 'zod';
 import { filterOptionMetrics, statisticsMetrics } from './metrics.js';
 import { PirschClient, type PirschClientOptions } from './pirsch-client.js';
 import {
@@ -30,6 +31,7 @@ export interface PirschServerOptions {
 }
 
 const readOnlyAnnotations = { readOnlyHint: true, destructiveHint: false, openWorldHint: true } as const;
+const unvalidatedInputSchema = z.object({}).passthrough();
 
 function jsonResult<T>(output: T) {
   return {
@@ -40,7 +42,15 @@ function jsonResult<T>(output: T) {
 
 function errorResult(error: unknown) {
   const message = error instanceof Error ? error.message : 'Pirsch request failed.';
-  return { content: [{ type: 'text' as const, text: message }], isError: true };
+  return { ...jsonResult({ error: { message } }), isError: true };
+}
+
+function parseToolInput<T>(schema: z.ZodType<T>, input: unknown): T {
+  const parsed = schema.safeParse(input);
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message ?? 'Tool input is invalid.');
+  }
+  return parsed.data;
 }
 
 function resolveDomain(domainId: string | undefined, defaultDomainId: string | undefined): string {
@@ -154,15 +164,16 @@ export function createPirschServer(options: PirschServerOptions = {}): McpServer
     {
       title: 'Query Pirsch analytics',
       description: 'Read one documented Pirsch Analytics API v1 metric for an explicitly selected domain and filter.',
-      inputSchema: statisticsQuerySchema,
+      inputSchema: unvalidatedInputSchema,
       outputSchema: statisticsOutputSchema,
       annotations: readOnlyAnnotations,
     },
     async (input) => {
       try {
-        validateStatisticQuery(input);
-        const domainId = resolveDomain(input.domainId, defaultDomainId);
-        const { domainId: _domainId, metric, ...filter } = input;
+        const query = parseToolInput(statisticsQuerySchema, input);
+        validateStatisticQuery(query);
+        const domainId = resolveDomain(query.domainId, defaultDomainId);
+        const { domainId: _domainId, metric, ...filter } = query;
         return jsonResult({ domainId, metric, data: await getReader().get(statisticsMetrics[metric].endpoint, domainId, filter) });
       } catch (error) {
         return errorResult(error);
@@ -175,14 +186,15 @@ export function createPirschServer(options: PirschServerOptions = {}): McpServer
     {
       title: 'List Pirsch filter options',
       description: 'List supported values for one documented Pirsch Analytics API v1 filter dimension.',
-      inputSchema: filterOptionsInputSchema,
+      inputSchema: unvalidatedInputSchema,
       outputSchema: filterOptionsOutputSchema,
       annotations: readOnlyAnnotations,
     },
-    async (input: FilterOptionsQuery) => {
+    async (input) => {
       try {
-        const domainId = resolveDomain(input.domainId, defaultDomainId);
-        const { domainId: _domainId, option, ...filter } = input;
+        const query: FilterOptionsQuery = parseToolInput(filterOptionsInputSchema, input);
+        const domainId = resolveDomain(query.domainId, defaultDomainId);
+        const { domainId: _domainId, option, ...filter } = query;
         return jsonResult({ domainId, option, data: await getReader().get(filterOptionMetrics[option], domainId, filter) });
       } catch (error) {
         return errorResult(error);
@@ -195,14 +207,15 @@ export function createPirschServer(options: PirschServerOptions = {}): McpServer
     {
       title: 'Compare Pirsch periods',
       description: 'Compare Pirsch totals and visitor series for a named or explicitly supplied pair of periods.',
-      inputSchema: comparisonInputSchema,
+      inputSchema: unvalidatedInputSchema,
       outputSchema: comparisonOutputSchema,
       annotations: readOnlyAnnotations,
     },
     async (input) => {
       try {
-        const domainId = resolveDomain(input.domainId, defaultDomainId);
-        return jsonResult(await comparePeriods(getReader(), domainId, input));
+        const query: ComparisonQuery = parseToolInput(comparisonInputSchema, input);
+        const domainId = resolveDomain(query.domainId, defaultDomainId);
+        return jsonResult(await comparePeriods(getReader(), domainId, query));
       } catch (error) {
         return errorResult(error);
       }

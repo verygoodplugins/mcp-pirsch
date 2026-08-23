@@ -106,16 +106,17 @@ export const safeDomainOutputSchema = z.object({
   displayName: z.string().optional(),
   timezone: z.string().optional(),
 });
-export const domainsOutputSchema = z.object({ domains: z.array(safeDomainOutputSchema) });
-export const statisticsOutputSchema = z.object({ domainId: z.string(), metric: z.string(), data: z.unknown() });
-export const filterOptionsOutputSchema = z.object({ domainId: z.string(), option: z.string(), data: z.unknown() });
-export const comparisonOutputSchema = z.object({
+export const errorOutputSchema = z.object({ error: z.object({ message: z.string() }) });
+export const domainsOutputSchema = z.union([z.object({ domains: z.array(safeDomainOutputSchema) }), errorOutputSchema]);
+export const statisticsOutputSchema = z.union([z.object({ domainId: z.string(), metric: z.string(), data: z.unknown() }), errorOutputSchema]);
+export const filterOptionsOutputSchema = z.union([z.object({ domainId: z.string(), option: z.string(), data: z.unknown() }), errorOutputSchema]);
+export const comparisonOutputSchema = z.union([z.object({
   domainId: z.string(),
   current: z.object({ from: z.string(), to: z.string() }),
   previous: z.object({ from: z.string(), to: z.string() }),
   totals: z.record(z.string(), z.object({ current: z.number(), previous: z.number(), change: z.number().nullable() })),
   series: z.object({ current: z.unknown(), previous: z.unknown() }),
-});
+}), errorOutputSchema]);
 
 export type StatisticsQuery = z.infer<typeof statisticsQuerySchema>;
 export type FilterOptionsQuery = z.infer<typeof filterOptionsInputSchema>;

@@ -41,6 +41,9 @@ describe('Pirsch MCP tool contracts', () => {
     const result = await client.callTool({ name: 'pirsch_query_statistics', arguments: { metric: 'pages' } });
 
     expect(result.isError).toBe(true);
+    const output = { error: { message: "metric 'pages' requires both from and to dates." } };
+    expect(result.structuredContent).toEqual(output);
+    expect(JSON.parse((result.content as Array<{ text: string }>)[0].text)).toEqual(output);
     expect(get).not.toHaveBeenCalled();
   });
 
@@ -57,6 +60,18 @@ describe('Pirsch MCP tool contracts', () => {
     const result = await client.callTool({ name: 'pirsch_query_statistics', arguments: { metric: 'overview', country: 'US' } });
 
     expect(result.isError).toBe(true);
+    expect(get).not.toHaveBeenCalled();
+  });
+
+  it('returns schema-invalid inputs as structured MCP errors', async () => {
+    const get = vi.fn();
+    const client = await connect(() => ({ listDomains: vi.fn(), get }));
+
+    const result = await client.callTool({ name: 'pirsch_query_statistics', arguments: { metric: 'pages', fromTime: '99:99' } });
+
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toEqual({ error: { message: expect.any(String) } });
+    expect(JSON.parse((result.content as Array<{ text: string }>)[0].text)).toEqual(result.structuredContent);
     expect(get).not.toHaveBeenCalled();
   });
 

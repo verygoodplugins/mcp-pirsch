@@ -53,14 +53,17 @@ export function isoDate(d: Date): string {
 }
 
 export function sumSeries(series: VisitorsPoint[]): VisitorsPoint {
-  return series.reduce((acc, p) => ({
-    visitors: acc.visitors + (p.visitors || 0),
-    views: acc.views + (p.views || 0),
-    sessions: acc.sessions + (p.sessions || 0),
-    bounces: acc.bounces + (p.bounces || 0),
+  return series.reduce<Required<Pick<VisitorsPoint, 'visitors' | 'views' | 'sessions' | 'bounces' | 'bounce_rate' | 'cr'>>>(
+    (acc, p) => ({
+    visitors: acc.visitors + (p.visitors ?? 0),
+    views: acc.views + (p.views ?? 0),
+    sessions: acc.sessions + (p.sessions ?? 0),
+    bounces: acc.bounces + (p.bounces ?? 0),
     bounce_rate: 0, // compute later
     cr: 0,
-  }), { visitors: 0, views: 0, sessions: 0, bounces: 0, bounce_rate: 0, cr: 0 });
+    }),
+    { visitors: 0, views: 0, sessions: 0, bounces: 0, bounce_rate: 0, cr: 0 }
+  );
 }
 
 export function pctChange(curr: number, prev: number): number | null {
