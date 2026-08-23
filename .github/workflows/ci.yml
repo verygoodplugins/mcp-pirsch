@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  test-node:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -37,3 +37,12 @@ jobs:
 
       - name: Test coverage
         run: npm run test:coverage
+
+  test:
+    name: test
+    needs: test-node
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every Node-version test job to pass
+        run: test "${{ needs.test-node.result }}" = 'success'
