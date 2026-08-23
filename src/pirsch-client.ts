@@ -51,9 +51,27 @@ function retryDelay(response: Response): number {
   if (Number.isFinite(seconds) && seconds >= 0) {
     return Math.min(Math.round(seconds * 1_000), MAX_RETRY_DELAY_MS);
   }
+  const retryAt = retryAfter ? Date.parse(retryAfter) : Number.NaN;
+  if (Number.isFinite(retryAt)) {
+    return Math.min(Math.max(0, retryAt - Date.now()), MAX_RETRY_DELAY_MS);
+  }
   return 1_000;
 }
 
+function resolveApiEndpoint(endpoint: string): URL {
+  if (!endpoint.startsWith('/') || endpoint.startsWith('//')) {
+    throw new PirschError('Pirsch API endpoint must be a relative path.');
+  }
+  const apiBaseUrl = new URL(API_BASE_URL);
+  const url = new URL(endpoint.slice(1), API_BASE_URL);
+  if (url.origin !== apiBaseUrl.origin) {
+    throw new PirschError('Pirsch API endpoint must use the Pirsch API origin.');
+  }
+  if (!url.pathname.startsWith(apiBaseUrl.pathname)) {
+    throw new PirschError('Pirsch API endpoint must remain within the API v1 path.');
+  }
+  return url;
+}
 export class PirschClient {
   private readonly fetchImpl: typeof globalThis.fetch;
   private readonly sleep: (milliseconds: number) => Promise<void>;
@@ -145,7 +163,7 @@ export class PirschClient {
   }
 
   private async request<T>(endpoint: string, params?: URLSearchParams): Promise<T> {
-    const url = new URL(endpoint.replace(/^\//, ''), API_BASE_URL);
+    const url = resolveApiEndpoint(endpoint);
     if (params) url.search = params.toString();
 
     for (let attempt = 0; attempt < 2; attempt += 1) {

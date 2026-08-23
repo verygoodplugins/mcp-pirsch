@@ -84,6 +84,19 @@ const v1FilterParameterNames = {
 
 const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
 const clockPattern = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+const stringFilterFields = [
+  'from', 'to', 'fromTime', 'toTime', 'timezone', 'hostname', 'path', 'entryPath', 'exitPath', 'pattern', 'event',
+  'eventMetaKey', 'language', 'country', 'region', 'city', 'referrer', 'referrerName', 'channel', 'operatingSystem',
+  'browser', 'screenClass', 'utmSource', 'utmMedium', 'utmCampaign', 'utmContent', 'utmTerm', 'customMetricKey',
+  'tags', 'sort', 'search', 'keyword', 'visitorId', 'sessionId',
+] as const satisfies ReadonlyArray<keyof PirschFilter>;
+
+const enumFilterValues = {
+  scale: ['day', 'week', 'month', 'year'],
+  platform: ['desktop', 'mobile', 'unknown'],
+  customMetricType: ['integer', 'float'],
+  direction: ['asc', 'desc'],
+} as const satisfies Partial<Record<keyof PirschFilter, readonly string[]>>;
 
 function isValidIsoDate(value: string): boolean {
   if (!isoDatePattern.test(value)) return false;
@@ -92,6 +105,20 @@ function isValidIsoDate(value: string): boolean {
 }
 
 export function validateV1Filter(filter: PirschFilter): void {
+  for (const name of stringFilterFields) {
+    const value = filter[name];
+    if (value !== undefined && typeof value !== 'string') throw new Error(`${name} must be a string.`);
+  }
+  for (const [name, allowedValues] of Object.entries(enumFilterValues) as Array<[keyof typeof enumFilterValues, readonly string[]]>) {
+    const value = filter[name];
+    if (value !== undefined && (typeof value !== 'string' || !allowedValues.includes(value))) {
+      throw new Error(`${name} must be one of: ${allowedValues.join(', ')}.`);
+    }
+  }
+  for (const name of ['includeAverageTimeOnPage', 'includeTitle'] as const) {
+    const value = filter[name];
+    if (value !== undefined && typeof value !== 'boolean') throw new Error(`${name} must be a boolean.`);
+  }
   if (filter.start !== undefined && (!Number.isInteger(filter.start) || filter.start < 0 || filter.start > 3_600)) {
     throw new Error('start must be an integer from 0 to 3600.');
   }

@@ -4,6 +4,7 @@ import { resolve } from 'path';
 import { pathToFileURL } from 'url';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { installStdioLifecycle } from './lifecycle.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, Tool } from '@modelcontextprotocol/sdk/types.js';
 import { config } from 'dotenv';
 import { PirschAPI } from './pirsch-api.js';
@@ -623,7 +624,15 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
 });
 
 async function main() {
+  // Capture before any await — process.ppid is dynamic.
+  const parentPid = process.ppid;
   const transport = new StdioServerTransport();
+  installStdioLifecycle({
+    transport,
+    onCloseAssignable: server,
+    envName: 'PIRSCH_PARENT_WATCHDOG_MS',
+    parentPid,
+  });
   await server.connect(transport);
   console.error('Pirsch MCP server running');
 }
