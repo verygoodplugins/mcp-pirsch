@@ -27,7 +27,7 @@ export function getDateRange(period: PirschPeriod, timezone = 'UTC', now = new D
       end.setUTCHours(23, 59, 59, 999);
       return { start, end };
     case 'week': {
-      const day = now.getUTCDay();
+      const day = start.getUTCDay();
       start.setUTCDate(start.getUTCDate() - ((day + 6) % 7));
       end.setTime(start.getTime());
       end.setUTCDate(start.getUTCDate() + 6);
@@ -35,7 +35,7 @@ export function getDateRange(period: PirschPeriod, timezone = 'UTC', now = new D
       return { start, end };
     }
     case 'lastWeek': {
-      const day = now.getUTCDay();
+      const day = start.getUTCDay();
       start.setUTCDate(start.getUTCDate() - ((day + 6) % 7) - 7);
       end.setTime(start.getTime());
       end.setUTCDate(start.getUTCDate() + 6);

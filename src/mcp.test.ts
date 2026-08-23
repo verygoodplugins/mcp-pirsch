@@ -102,6 +102,24 @@ describe('Pirsch MCP tool contracts', () => {
     })]);
   });
 
+  it('uses the timezone-local weekday for named weekly periods', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-03T00:30:00.000Z'));
+    const get = vi.fn().mockResolvedValue({ visitors: 1 });
+    const client = await connect(() => ({ listDomains: vi.fn(), get }));
+
+    const result = await client.callTool({
+      name: 'pirsch_compare_periods',
+      arguments: { period: 'week', timezone: 'America/Los_Angeles' },
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(get.mock.calls[0]).toEqual(['/statistics/total', 'default-domain', expect.objectContaining({
+      from: '2026-07-27',
+      to: '2026-08-02',
+    })]);
+  });
+
   it('resolves named comparison periods in the configured timezone', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-08-01T00:30:00.000Z'));
