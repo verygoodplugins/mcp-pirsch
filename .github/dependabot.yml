@@ -10,6 +10,7 @@ updates:
       toolchain:
         dependency-type: "development"
         patterns:
+          - "@modelcontextprotocol/client"
           - "@eslint/js"
           - "@types/*"
           - "@vitest/coverage-v8"
