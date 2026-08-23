@@ -6,7 +6,7 @@
   "type": "module",
   "mcpName": "io.github.verygoodplugins/mcp-pirsch",
   "engines": {
-    "node": ">=20.19.0"
+    "node": ">=22.19.0"
   },
   "bin": {
     "mcp-pirsch": "dist/index.js"
@@ -56,12 +56,15 @@
     "server.json"
   ],
   "dependencies": {
+    "@modelcontextprotocol/server": "^2.0.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "dotenv": "^17.4.1",
-    "node-fetch": "^3.3.2"
+    "dotenv": "^17.4.2",
+    "node-fetch": "^3.3.2",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@modelcontextprotocol/client": "^2.0.0",
     "@types/node": "^25.5.2",
     "@vitest/coverage-v8": "^3.2.0",
     "eslint": "^9.39.4",
