@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildFilterParams } from './filters.js';
+import { buildFilterParams, validateV1Filter } from './filters.js';
 
 describe('buildFilterParams', () => {
   const domainId = 'test-domain-123';
@@ -221,5 +221,11 @@ describe('buildFilterParams', () => {
   it('should set tag filter', () => {
     const params = buildFilterParams({ tag: 'premium' }, domainId);
     expect(params.get('tag')).toBe('premium');
+  });
+});
+
+describe('validateV1Filter', () => {
+  it('rejects nonexistent calendar dates', () => {
+    expect(() => validateV1Filter({ from: '2026-02-31' })).toThrow('from must be an ISO date.');
   });
 });
