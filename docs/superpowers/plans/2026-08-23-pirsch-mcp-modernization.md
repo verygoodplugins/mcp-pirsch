@@ -197,7 +197,7 @@ git commit -m "feat!: replace legacy Pirsch tool catalog"
 **Files:**
 
 - Modify: `README.md`, `.env.example`, `server.json`, `CLAUDE.md`, `src/index.spawn.test.ts`
-- Create: `AGENTS.md`, `scripts/release-workflow.test.mjs`
+- Create: `AGENTS.md`, `scripts/release-workflow.node.mjs`
 - Modify: `.github/workflows/ci.yml`, `.github/workflows/security.yml`, `.github/workflows/release-please.yml`, `.github/dependabot.yml`, `release-please-config.json`, `.release-please-manifest.json`
 
 **Interfaces:** Registry publication is downstream of npm publication and uses GitHub OIDC. The README maps each retired tool name to one of the four tools. The release hardening is delivered first by PR #35; this task consumes that verified baseline rather than duplicating it.
