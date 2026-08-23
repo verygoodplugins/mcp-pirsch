@@ -104,3 +104,9 @@ npx -y @modelcontextprotocol/inspector@latest --cli node dist/index.js --method 
 ```
 
 The release workflow publishes to npm with trusted publishing and then publishes the same tagged manifest to the MCP Registry through GitHub OIDC. Local development and CI never publish anything.
+
+## Support
+
+For bugs and feature requests, open an issue in this repository. Pirsch questions are best answered through the [Pirsch documentation](https://docs.pirsch.io/api-sdks/api-v1); package support is maintained by [Very Good Plugins](https://verygoodplugins.com/?utm_source=github).
+
+Built with 🧡 by Very Good Plugins.
