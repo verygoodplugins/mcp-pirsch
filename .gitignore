@@ -7,6 +7,9 @@ yarn-debug.log*
 yarn-error.log*
 coverage
 
+# Local agent-planning artifacts are not repository documentation.
+docs/superpowers/
+
 .mcp.json
 dashboard.html
 /screenshots

@@ -75,6 +75,15 @@ describe('Pirsch MCP tool contracts', () => {
     expect(get).not.toHaveBeenCalled();
   });
 
+  it('advertises the documented schema before the error-envelope fallback', async () => {
+    const client = await connect(() => ({ listDomains: vi.fn(), get: vi.fn() }));
+
+    const tool = (await client.listTools()).tools.find(({ name }) => name === 'pirsch_query_statistics');
+    const schemas = (tool?.inputSchema as { anyOf?: Array<{ properties?: Record<string, unknown> }> }).anyOf;
+
+    expect(schemas?.[0]?.properties?.metric).toBeDefined();
+  });
+
   it('uses the selected default domain and documented option endpoint', async () => {
     const get = vi.fn().mockResolvedValue(['signup']);
     const client = await connect(() => ({ listDomains: vi.fn(), get }));

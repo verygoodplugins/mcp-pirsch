@@ -164,7 +164,7 @@ export function createPirschServer(options: PirschServerOptions = {}): McpServer
     {
       title: 'Query Pirsch analytics',
       description: 'Read one documented Pirsch Analytics API v1 metric for an explicitly selected domain and filter.',
-      inputSchema: unvalidatedInputSchema,
+      inputSchema: z.union([statisticsQuerySchema, unvalidatedInputSchema]),
       outputSchema: statisticsOutputSchema,
       annotations: readOnlyAnnotations,
     },
@@ -186,7 +186,7 @@ export function createPirschServer(options: PirschServerOptions = {}): McpServer
     {
       title: 'List Pirsch filter options',
       description: 'List supported values for one documented Pirsch Analytics API v1 filter dimension.',
-      inputSchema: unvalidatedInputSchema,
+      inputSchema: z.union([filterOptionsInputSchema, unvalidatedInputSchema]),
       outputSchema: filterOptionsOutputSchema,
       annotations: readOnlyAnnotations,
     },
@@ -207,7 +207,7 @@ export function createPirschServer(options: PirschServerOptions = {}): McpServer
     {
       title: 'Compare Pirsch periods',
       description: 'Compare Pirsch totals and visitor series for a named or explicitly supplied pair of periods.',
-      inputSchema: unvalidatedInputSchema,
+      inputSchema: z.union([comparisonInputSchema, unvalidatedInputSchema]),
       outputSchema: comparisonOutputSchema,
       annotations: readOnlyAnnotations,
     },
