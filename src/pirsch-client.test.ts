@@ -50,7 +50,6 @@ describe('PirschClient', () => {
 
     expect(String(fetch.mock.calls[1]?.[0])).toMatch(/^https:\/\/api\.pirsch\.io\/api\/v1\/domain$/);
   });
-
   it('honors numeric Retry-After values with a bounded retry', async () => {
     const sleep = vi.fn().mockResolvedValue(undefined);
     const fetch = vi
@@ -82,7 +81,6 @@ describe('PirschClient', () => {
     expect(sleep.mock.calls[0]?.[0]).toBeGreaterThan(1_000);
     expect(sleep.mock.calls[0]?.[0]).toBeLessThanOrEqual(5_000);
   });
-
   it('redacts credentials and response bodies from errors', async () => {
     const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(jsonResponse({ error: 'client-secret access-token' }, 401));
     const client = new PirschClient(credentials, { fetch });
@@ -162,7 +160,6 @@ describe('PirschClient', () => {
     await expect(client.get('/%2e%2e/admin', 'domain-1')).rejects.toThrow('API v1 path');
     expect(fetch).not.toHaveBeenCalled();
   });
-
   it('redacts structurally invalid successful token payloads', async () => {
     const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(jsonResponse(null));
     const client = new PirschClient(credentials, { fetch });

@@ -2,56 +2,49 @@ import type { VisitorsPoint } from './types.js';
 
 export function getDateRange(period: 'today' | 'yesterday' | 'week' | 'lastWeek' | 'month' | 'lastMonth') {
   const now = new Date();
-  const start = new Date();
-  const end = new Date();
+  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const end = new Date(start);
 
   switch (period) {
     case 'today':
-      start.setHours(0, 0, 0, 0);
-      break;
+      end.setUTCHours(23, 59, 59, 999);
+      return { start, end };
     case 'yesterday':
-      start.setDate(start.getDate() - 1);
-      start.setHours(0, 0, 0, 0);
-      end.setDate(start.getDate());
-      end.setHours(23, 59, 59, 999);
+      start.setUTCDate(start.getUTCDate() - 1);
+      end.setTime(start.getTime());
+      end.setUTCHours(23, 59, 59, 999);
       return { start, end };
     case 'week': {
-      const day = now.getDay();
-      const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-      start.setDate(diff);
-      start.setHours(0, 0, 0, 0);
+      const day = now.getUTCDay();
+      start.setUTCDate(start.getUTCDate() - ((day + 6) % 7));
       end.setTime(start.getTime());
-      end.setDate(start.getDate() + 6);
-      end.setHours(23, 59, 59, 999);
+      end.setUTCDate(start.getUTCDate() + 6);
+      end.setUTCHours(23, 59, 59, 999);
       return { start, end };
     }
     case 'lastWeek': {
-      const day = now.getDay();
-      const diff = now.getDate() - day + (day === 0 ? -6 : 1) - 7;
-      start.setDate(diff);
-      start.setHours(0, 0, 0, 0);
+      const day = now.getUTCDay();
+      start.setUTCDate(start.getUTCDate() - ((day + 6) % 7) - 7);
       end.setTime(start.getTime());
-      end.setDate(start.getDate() + 6);
-      end.setHours(23, 59, 59, 999);
+      end.setUTCDate(start.getUTCDate() + 6);
+      end.setUTCHours(23, 59, 59, 999);
       return { start, end };
     }
     case 'month': {
-      start.setDate(1);
-      start.setHours(0, 0, 0, 0);
-      end.setMonth(start.getMonth() + 1, 0);
-      end.setHours(23, 59, 59, 999);
+      start.setUTCDate(1);
+      end.setUTCMonth(start.getUTCMonth() + 1, 0);
+      end.setUTCHours(23, 59, 59, 999);
       return { start, end };
     }
     case 'lastMonth': {
-      start.setMonth(start.getMonth() - 1, 1);
-      start.setHours(0, 0, 0, 0);
-      end.setMonth(start.getMonth() + 1, 0);
-      end.setHours(23, 59, 59, 999);
+      start.setUTCMonth(start.getUTCMonth() - 1, 1);
+      end.setTime(start.getTime());
+      end.setUTCMonth(start.getUTCMonth() + 1, 0);
+      end.setUTCHours(23, 59, 59, 999);
       return { start, end };
     }
   }
-  // Default today
-  end.setHours(23, 59, 59, 999);
+  end.setUTCHours(23, 59, 59, 999);
   return { start, end };
 }
 
@@ -74,4 +67,3 @@ export function pctChange(curr: number, prev: number): number | null {
   if (prev === 0) return null;
   return (curr - prev) / prev;
 }
-

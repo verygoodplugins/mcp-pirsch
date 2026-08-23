@@ -72,7 +72,6 @@ function resolveApiEndpoint(endpoint: string): URL {
   }
   return url;
 }
-
 export class PirschClient {
   private readonly fetchImpl: typeof globalThis.fetch;
   private readonly sleep: (milliseconds: number) => Promise<void>;

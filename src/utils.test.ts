@@ -88,46 +88,54 @@ describe('utils', () => {
 
     it('should return today range', () => {
       const { start, end } = getDateRange('today');
-      expect(start.getFullYear()).toBe(2024);
-      expect(start.getMonth()).toBe(2); // March (0-indexed)
-      expect(start.getDate()).toBe(15);
-      expect(start.getHours()).toBe(0);
-      expect(end.getHours()).toBe(23);
+      expect(start.getUTCFullYear()).toBe(2024);
+      expect(start.getUTCMonth()).toBe(2); // March (0-indexed)
+      expect(start.getUTCDate()).toBe(15);
+      expect(start.getUTCHours()).toBe(0);
+      expect(end.getUTCHours()).toBe(23);
     });
 
     it('should return yesterday range', () => {
       const { start, end } = getDateRange('yesterday');
-      expect(start.getDate()).toBe(14);
-      expect(end.getDate()).toBe(14);
+      expect(start.getUTCDate()).toBe(14);
+      expect(end.getUTCDate()).toBe(14);
     });
 
     it('should return current week range (Monday to Sunday)', () => {
       const { start, end } = getDateRange('week');
       // March 15, 2024 is Friday, week starts Monday March 11
-      expect(start.getDate()).toBe(11);
-      expect(end.getDate()).toBe(17); // Sunday
+      expect(start.getUTCDate()).toBe(11);
+      expect(end.getUTCDate()).toBe(17); // Sunday
     });
 
     it('should return last week range', () => {
       const { start, end } = getDateRange('lastWeek');
       // Previous week: March 4-10
-      expect(start.getDate()).toBe(4);
-      expect(end.getDate()).toBe(10);
+      expect(start.getUTCDate()).toBe(4);
+      expect(end.getUTCDate()).toBe(10);
     });
 
     it('should return current month range', () => {
       const { start, end } = getDateRange('month');
-      expect(start.getDate()).toBe(1);
-      expect(end.getDate()).toBe(31); // March has 31 days
+      expect(start.getUTCDate()).toBe(1);
+      expect(end.getUTCDate()).toBe(31); // March has 31 days
     });
 
     it('should return last month range', () => {
       const { start, end } = getDateRange('lastMonth');
       // February 2024 (leap year, so 29 days)
-      expect(start.getMonth()).toBe(1); // February
-      expect(start.getDate()).toBe(1);
-      expect(end.getMonth()).toBe(1);
-      expect(end.getDate()).toBe(29);
+      expect(start.getUTCMonth()).toBe(1); // February
+      expect(start.getUTCDate()).toBe(1);
+      expect(end.getUTCMonth()).toBe(1);
+      expect(end.getUTCDate()).toBe(29);
+    });
+
+    it('uses UTC calendar dates at a local-day boundary', () => {
+      vi.setSystemTime(new Date('2024-03-15T23:30:00.000Z'));
+      const { start, end } = getDateRange('today');
+
+      expect(isoDate(start)).toBe('2024-03-15');
+      expect(isoDate(end)).toBe('2024-03-15');
     });
   });
 });
