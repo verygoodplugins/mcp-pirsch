@@ -154,6 +154,15 @@ describe('PirschClient', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it('rejects normalized paths outside the Pirsch API v1 prefix', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>();
+    const client = new PirschClient(credentials, { fetch });
+
+    await expect(client.get('/../admin', 'domain-1')).rejects.toThrow('API v1 path');
+    await expect(client.get('/%2e%2e/admin', 'domain-1')).rejects.toThrow('API v1 path');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('redacts structurally invalid successful token payloads', async () => {
     const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(jsonResponse(null));
     const client = new PirschClient(credentials, { fetch });
