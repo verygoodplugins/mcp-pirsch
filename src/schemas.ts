@@ -62,9 +62,9 @@ function validateChronologicalRanges(input: DateRangeInput, ctx: z.RefinementCtx
     if (from && to && from > to) {
       ctx.addIssue({ code: 'custom', path: [toKey], message: `${fromKey} must be on or before ${toKey}.` });
     }
-  }
-  if (input.from && input.to && input.from === input.to && input.fromTime && input.toTime && input.fromTime > input.toTime) {
-    ctx.addIssue({ code: 'custom', path: ['toTime'], message: 'toTime must be on or after fromTime for a same-day range.' });
+    if (from && to && from === to && input.fromTime && input.toTime && input.fromTime > input.toTime) {
+      ctx.addIssue({ code: 'custom', path: ['toTime'], message: 'toTime must be on or after fromTime for a same-day range.' });
+    }
   }
 }
 

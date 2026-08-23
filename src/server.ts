@@ -124,7 +124,7 @@ export function createPirschServer(options: PirschServerOptions = {}): McpServer
   const getReader = () => {
     reader ??= options.clientFactory?.() ?? new PirschClient(
       options.credentials ?? { clientId: process.env.PIRSCH_CLIENT_ID, clientSecret: process.env.PIRSCH_CLIENT_SECRET },
-      options.clientOptions ?? { timezone: process.env.PIRSCH_TIMEZONE }
+      { ...options.clientOptions, timezone: options.clientOptions?.timezone ?? process.env.PIRSCH_TIMEZONE }
     );
     return reader;
   };
