@@ -228,4 +228,14 @@ describe('validateV1Filter', () => {
   it('rejects nonexistent calendar dates', () => {
     expect(() => validateV1Filter({ from: '2026-02-31' })).toThrow('from must be an ISO date.');
   });
+
+  it('rejects invalid enum values at runtime', () => {
+    expect(() => validateV1Filter({ scale: 'hour' } as unknown as Parameters<typeof validateV1Filter>[0])).toThrow('scale must be one of');
+    expect(() => validateV1Filter({ direction: 'sideways' } as unknown as Parameters<typeof validateV1Filter>[0])).toThrow('direction must be one of');
+  });
+
+  it('rejects invalid primitive values at runtime', () => {
+    expect(() => validateV1Filter({ includeTitle: 'false' } as unknown as Parameters<typeof validateV1Filter>[0])).toThrow('includeTitle must be a boolean.');
+    expect(() => validateV1Filter({ hostname: 42 } as unknown as Parameters<typeof validateV1Filter>[0])).toThrow('hostname must be a string.');
+  });
 });

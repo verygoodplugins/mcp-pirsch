@@ -54,6 +54,23 @@ describe('PirschClient', () => {
     expect(fetch).toHaveBeenCalledTimes(3);
   });
 
+  it('honors HTTP-date Retry-After values with a bounded retry', async () => {
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    const retryAt = new Date(Date.now() + 4_000).toUTCString();
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValueOnce(jsonResponse({ access_token: 'access-token', expires_at: futureIso() }))
+      .mockResolvedValueOnce(jsonResponse({ error: 'too many requests' }, 429, { 'Retry-After': retryAt }))
+      .mockResolvedValueOnce(jsonResponse([]));
+    const client = new PirschClient(credentials, { fetch, sleep });
+
+    await client.listDomains();
+
+    expect(sleep).toHaveBeenCalledWith(expect.any(Number));
+    expect(sleep.mock.calls[0]?.[0]).toBeGreaterThan(1_000);
+    expect(sleep.mock.calls[0]?.[0]).toBeLessThanOrEqual(5_000);
+  });
+
   it('redacts credentials and response bodies from errors', async () => {
     const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(jsonResponse({ error: 'client-secret access-token' }, 401));
     const client = new PirschClient(credentials, { fetch });
@@ -114,6 +131,14 @@ describe('PirschClient', () => {
 
     await expect(client.get('/statistics/total', 'domain-1', { limit: 101 })).rejects.toThrow('limit must be an integer from 1 to 100.');
     await expect(client.get('/statistics/total', 'domain-1', { from: '2026-08-02', to: '2026-08-01' })).rejects.toThrow('from must be on or before to.');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('rejects absolute endpoints before obtaining a bearer token', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>();
+    const client = new PirschClient(credentials, { fetch });
+
+    await expect(client.get('https://attacker.example/collect', 'domain-1')).rejects.toThrow('relative path');
     expect(fetch).not.toHaveBeenCalled();
   });
 
