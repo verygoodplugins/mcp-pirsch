@@ -6,7 +6,7 @@
   "type": "module",
   "mcpName": "io.github.verygoodplugins/mcp-pirsch",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.19.0"
   },
   "bin": {
     "mcp-pirsch": "dist/index.js"
@@ -19,6 +19,7 @@
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "test": "vitest run",
+    "test:release-workflow": "node --test scripts/release-workflow.node.mjs",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",

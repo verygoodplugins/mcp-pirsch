@@ -7,14 +7,17 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  test-node:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ["20.19", "24"]
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: ${{ matrix.node-version }}
           cache: "npm"
 
       - name: Install dependencies
@@ -29,6 +32,17 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: Test release workflow
+        run: npm run test:release-workflow
+
       - name: Test coverage
         run: npm run test:coverage
-        continue-on-error: true
+
+  test:
+    name: test
+    needs: test-node
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every Node-version test job to pass
+        run: test "${{ needs.test-node.result }}" = 'success'
