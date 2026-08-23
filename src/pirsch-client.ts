@@ -62,7 +62,7 @@ function resolveApiEndpoint(endpoint: string): URL {
   if (!endpoint.startsWith('/') || endpoint.startsWith('//')) {
     throw new PirschError('Pirsch API endpoint must be a relative path.');
   }
-  const url = new URL(endpoint, API_BASE_URL);
+  const url = new URL(endpoint.slice(1), API_BASE_URL);
   if (url.origin !== new URL(API_BASE_URL).origin) {
     throw new PirschError('Pirsch API endpoint must use the Pirsch API origin.');
   }

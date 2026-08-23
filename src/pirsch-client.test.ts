@@ -39,6 +39,18 @@ describe('PirschClient', () => {
     expect(Object.fromEntries(request.searchParams)).toMatchObject({ id: 'domain-1', event: 'Signed up', event_meta_key: 'plan name', tag: 'pro plan' });
   });
 
+  it('keeps public endpoints under the Pirsch API v1 path', async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValueOnce(jsonResponse({ access_token: 'access-token', expires_at: futureIso() }))
+      .mockResolvedValueOnce(jsonResponse([]));
+    const client = new PirschClient(credentials, { fetch });
+
+    await client.listDomains();
+
+    expect(String(fetch.mock.calls[1]?.[0])).toMatch(/^https:\/\/api\.pirsch\.io\/api\/v1\/domain$/);
+  });
+
   it('honors numeric Retry-After values with a bounded retry', async () => {
     const sleep = vi.fn().mockResolvedValue(undefined);
     const fetch = vi
