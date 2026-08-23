@@ -15,7 +15,6 @@ test('registry publication follows npm publication and uses OIDC', () => {
   assert.match(registryJob, /mcp-publisher login github-oidc/);
   assert.doesNotMatch(registryJob, /continue-on-error/);
 });
-
 test('CI publishes the organization-required test check after both Node versions pass', () => {
   const workflow = readFileSync('.github/workflows/ci.yml', 'utf8');
 
