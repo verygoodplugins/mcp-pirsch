@@ -41,7 +41,7 @@ function jsonResult<T>(output: T) {
 
 function errorResult(error: unknown) {
   const message = error instanceof Error ? error.message : 'Pirsch request failed.';
-  return { content: [{ type: 'text' as const, text: message }], isError: true };
+  return { ...jsonResult({ error: true, message }), isError: true };
 }
 
 function resolveDomain(domainId: string | undefined, defaultDomainId: string | undefined): string {

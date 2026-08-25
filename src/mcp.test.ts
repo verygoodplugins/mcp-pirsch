@@ -63,6 +63,11 @@ describe('Pirsch MCP tool contracts', () => {
     const result = await client.callTool({ name: 'pirsch_query_statistics', arguments: { metric: 'pages' } });
 
     expect(result.isError).toBe(true);
+    expect(result.structuredContent).toEqual({
+      error: true,
+      message: "metric 'pages' requires both from and to dates.",
+    });
+    expect(JSON.parse((result.content as Array<{ text: string }>)[0].text)).toEqual(result.structuredContent);
     expect(get).not.toHaveBeenCalled();
   });
 
