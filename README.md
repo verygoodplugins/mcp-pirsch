@@ -1,514 +1,112 @@
-# MCP Pirsch Server
+# Pirsch MCP Server
 
-[![Version](https://img.shields.io/npm/v/@verygoodplugins/mcp-pirsch)](https://www.npmjs.com/package/@verygoodplugins/mcp-pirsch)
-[![License](https://img.shields.io/npm/l/@verygoodplugins/mcp-pirsch)](LICENSE)
+[![npm](https://img.shields.io/npm/v/@verygoodplugins/mcp-pirsch)](https://www.npmjs.com/package/@verygoodplugins/mcp-pirsch)
 
-A Model Context Protocol (MCP) server for Pirsch Analytics, enabling natural language analytics queries, period comparisons, and trend analysis for your website traffic.
+A focused, read-only [Model Context Protocol](https://modelcontextprotocol.io) server for [Pirsch Analytics API v1](https://docs.pirsch.io/api-sdks/api-v1). It uses MCP SDK v2 and returns both structured results and JSON text for every successful tool call.
 
-## Features
+## Requirements
 
-- 🔐 **Smart Authentication** - OAuth client credentials with automatic token caching and refresh
-- 📊 **Core Analytics** - Comprehensive stats including visitors, page views, bounce rates, and conversion rates
-- 📈 **Time Series Data** - Flexible visitor trends with day/week/month/year granularity
-- 🔄 **Period Comparisons** - Compare metrics across different time periods with calculated deltas
-- 🎯 **Goals & Events** - Read conversion goals, event activity, and event-specific page performance
-- 🧭 **Session Drilldown** - Inspect entry pages, exit pages, session lists, and per-session timelines
-- ⚡ **Real-time Insights** - Active visitor tracking with configurable time windows
-- 🎯 **Advanced Filtering** - Full support for Pirsch query parameters including UTM, referrers, and dimensions
-- 🌍 **Multi-domain Support** - Manage analytics across multiple websites from one interface
+- Node.js **22.19.0 or later**
+- A Pirsch OAuth API client with read access. Do not use a write-only access key.
 
-## Quick Start
-
-### Installation Methods
-
-#### Option 1: Using NPX (No Installation Required)
-
-The simplest way - no need to install anything globally:
-
-```bash
-# For Claude Desktop
-npx @verygoodplugins/mcp-pirsch
-
-# For Claude Code
-claude mcp add pirsch "npx @verygoodplugins/mcp-pirsch"
-```
-
-#### Option 2: Global Installation
-
-Install once, use anywhere:
-
-```bash
-# Install globally
-npm install -g @verygoodplugins/mcp-pirsch
-
-# For Claude Code
-claude mcp add pirsch "mcp-pirsch"
-```
-
-#### Option 3: Local Development
-
-For contributing or customization:
-
-```bash
-# Clone and install
-git clone https://github.com/verygoodplugins/mcp-pirsch.git
-cd mcp-pirsch
-npm install
-npm run build
-```
-
-## Configuration
-
-### 1. Get Pirsch API Credentials
-
-1. Log into your [Pirsch Analytics Dashboard](https://pirsch.io)
-2. Navigate to Settings → API Clients
-3. Create a new client with appropriate permissions
-4. Copy your Client ID and Client Secret
-
-### 2. Configure Your Client
-
-<details>
-<summary><b>Claude Desktop Configuration</b></summary>
-
-**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`  
-**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+## Configure
 
 ```json
 {
   "mcpServers": {
     "pirsch": {
       "command": "npx",
-      "args": ["@verygoodplugins/mcp-pirsch"],
+      "args": ["-y", "@verygoodplugins/mcp-pirsch@latest"],
       "env": {
-        "PIRSCH_CLIENT_ID": "your_client_id",
-        "PIRSCH_CLIENT_SECRET": "your_client_secret",
-        "PIRSCH_DEFAULT_DOMAIN_ID": "your_domain_id",
-        "PIRSCH_TIMEZONE": "America/New_York"
+        "PIRSCH_CLIENT_ID": "your-read-only-oauth-client-id",
+        "PIRSCH_CLIENT_SECRET": "your-oauth-client-secret",
+        "PIRSCH_DEFAULT_DOMAIN_ID": "optional-default-domain-id"
       }
     }
   }
 }
 ```
 
-**Or** if installed globally:
-```json
-{
-  "mcpServers": {
-    "pirsch": {
-      "command": "mcp-pirsch",
-      "env": {
-        "PIRSCH_CLIENT_ID": "your_client_id",
-        "PIRSCH_CLIENT_SECRET": "your_client_secret"
-      }
-    }
-  }
-}
-```
+`PIRSCH_DEFAULT_DOMAIN_ID` is optional. When it is unset, every query tool requires `domainId`; the server never picks the first accessible domain. Use `pirsch_list_domains` to discover IDs safely.
 
-</details>
+Optional `PIRSCH_TIMEZONE` supplies the default timezone for requests that do not explicitly include `timezone`.
 
-<details>
-<summary><b>Claude Code Configuration</b></summary>
+## Tools
 
-```bash
-claude mcp add pirsch "npx @verygoodplugins/mcp-pirsch" \
-  --env PIRSCH_CLIENT_ID=your_client_id \
-  --env PIRSCH_CLIENT_SECRET=your_client_secret \
-  --env PIRSCH_DEFAULT_DOMAIN_ID=your_domain_id
-```
+| Tool | Purpose |
+| --- | --- |
+| `pirsch_list_domains` | Lists only `id`, hostname, display name, and timezone. |
+| `pirsch_query_statistics` | Reads one documented v1 metric, with dates and filters. |
+| `pirsch_list_filter_options` | Lists allowed values for a documented filter dimension. |
+| `pirsch_compare_periods` | Compares actual totals and visitor series for two periods. |
 
-</details>
+All tools are read-only. They return `structuredContent` matching their output schema as well as an equivalent JSON text block. Input or API failures use MCP `isError: true` and do not expose credentials or raw upstream bodies.
 
-<details>
-<summary><b>Cursor IDE Configuration</b></summary>
+### Querying statistics
 
-Add to `.mcp.json` in your project:
+`pirsch_query_statistics` accepts a `metric`, optional `domainId`, and flat camel-case filters. Most metrics require ISO dates:
 
 ```json
 {
-  "mcpServers": {
-    "pirsch": {
-      "command": "node",
-      "args": ["./node_modules/@verygoodplugins/mcp-pirsch/dist/index.js"],
-      "env": {
-        "PIRSCH_CLIENT_ID": "your_client_id",
-        "PIRSCH_CLIENT_SECRET": "your_client_secret"
-      }
-    }
-  }
-}
-```
-
-</details>
-
-### 3. Environment Variables
-
-Create a `.env` file for local development:
-
-```env
-# Required
-PIRSCH_CLIENT_ID=your_client_id
-PIRSCH_CLIENT_SECRET=your_client_secret
-
-# Optional
-PIRSCH_DEFAULT_DOMAIN_ID=your_domain_id  # Auto-detected if not set
-PIRSCH_TIMEZONE=America/New_York         # Default: UTC
-PIRSCH_TOKEN_SKEW_MS=60000              # Token refresh buffer (default: 60 seconds)
-```
-
-## Available Tools
-
-### Discovery & Setup
-
-#### `pirsch_list_domains`
-List all accessible domains to discover domain IDs.
-
-**Parameters:**
-- `search` (optional): Filter domains by name
-
-**Example:**
-```
-List all my Pirsch domains
-```
-
-### Core Statistics
-
-#### `pirsch_overview`
-Get cached overview statistics for a domain.
-
-**Parameters:**
-- `domain_id` (optional): Target domain ID
-
-**Returns:** Visitors, page views, and member counts
-
-**Note:** This is the Pirsch cached overview endpoint. Filters do not apply, and it should not be used as a substitute for `pirsch_total` over a custom date range.
-
-#### `pirsch_total`
-Get total metrics for a specific period.
-
-**Parameters:**
-- `domain_id` (optional): Target domain ID
-- `filter` (optional): Filter object with date range, dimensions, etc.
-
-Most analytics tools accept filter fields either inside `filter` or as top-level arguments. Both forms are supported for MCP client compatibility.
-
-**Returns:** Total visitors, views, sessions, bounces, bounce rate, conversion rate, and custom metric aggregates
-
-#### `pirsch_visitors`
-Get visitor time series data.
-
-**Parameters:**
-- `domain_id` (optional): Target domain ID
-- `filter` (optional): Including `scale` (day/week/month/year)
-
-**Example:**
-```
-Show me daily visitor trends for the last month
-```
-
-#### `pirsch_pages`
-Get top pages with performance metrics.
-
-**Parameters:**
-- `domain_id` (optional): Target domain ID
-- `filter` (optional): Including:
-  - `sort`: Sort field
-  - `direction`: asc/desc
-  - `search`: Search in page paths
-  - `include_avg_time_on_page`: Include time metrics
-  - `include_title`: Include page titles
-
-**Tip:** Exact `path: "/news/"` still matches only that URL. For section queries on page-style tools, path-shaped values such as `search: "/news/"`, `path: "~/news/"`, or `pattern: "/news/*"` are narrowed again inside the MCP so `/documentation/news/...` does not leak into `/news/...` results. `path_prefix` is also available when you want an explicit root-prefix filter.
-Top-level `search`, `path`, and `path_prefix` arguments are also accepted.
-
-#### `pirsch_entry_pages`
-Get entry page analytics.
-
-#### `pirsch_exit_pages`
-Get exit page analytics.
-
-#### `pirsch_referrers`
-Analyze traffic sources and referrers.
-
-**Parameters:**
-- `domain_id` (optional): Target domain ID
-- `filter` (optional): Standard filter parameters
-
-#### `pirsch_goals`
-Get conversion goals together with their observed stats.
-
-**Parameters:**
-- `domain_id` (optional): Target domain ID
-- `filter` (optional): Standard filter parameters
-
-#### `pirsch_events`
-Get aggregated event statistics including counts, visitors, conversion rate, and metadata keys.
-
-**Parameters:**
-- `domain_id` (optional): Target domain ID
-- `filter` (optional): Standard filter parameters
-
-#### `pirsch_event_pages`
-Get pages on which a specific event fired.
-
-**Parameters:**
-- `domain_id` (optional): Target domain ID
-- `filter` (required): Standard filter parameters, including `event`
-
-The event can also be passed as a top-level `event` argument. If your client uses goal payload field names, `event_name` is accepted as an alias and normalized to `event`. The same path-prefix narrowing described for `pirsch_pages` also applies here.
-
-#### `pirsch_utm`
-Analyze UTM campaign parameters.
-
-**Parameters:**
-- `type` (required): source | medium | campaign | content | term
-- `domain_id` (optional): Target domain ID
-- `filter` (optional): Standard filter parameters
-
-**Example:**
-```
-Show me UTM source breakdown for this week
-```
-
-#### `pirsch_growth`
-Calculate growth rates across metrics.
-
-**Parameters:**
-- `domain_id` (optional): Target domain ID
-- `filter` (optional): Date range for growth calculation
-
-### Real-time Analytics
-
-#### `pirsch_active`
-Get currently active visitors and pages.
-
-**Parameters:**
-- `domain_id` (optional): Target domain ID
-- `start` (optional): Seconds to look back (default: 600)
-
-**Example:**
-```
-Show me active visitors in the last 5 minutes
-```
-
-### Session Analytics
-
-#### `pirsch_sessions`
-Get session list data including entry/exit pages, duration, geography, device, and traffic source context.
-
-**Parameters:**
-- `domain_id` (optional): Target domain ID
-- `filter` (optional): Standard filter parameters
-
-#### `pirsch_session_details`
-Get the chronological page-view and event timeline for a single session.
-
-**Parameters:**
-- `domain_id` (optional): Target domain ID
-- `filter` (required): Must include both `visitor_id` and `session_id`
-
-### Comparative Analytics
-
-#### `pirsch_compare`
-Compare metrics between two time periods using true period totals from Pirsch totals, plus the matching visitor series for charts.
-
-**Parameters:**
-- `domain_id` (optional): Target domain ID
-- `period` (optional): today | yesterday | week | lastWeek | month | lastMonth
-- `compare` (optional): previous | year | custom
-- `from`, `to` (optional): Custom date range (YYYY-MM-DD)
-- `compare_from`, `compare_to` (optional): Custom comparison range
-- `scale` (optional): day | week | month | year
-
-**Example:**
-```
-Compare this week's traffic to last week
-```
-
-## Filter Parameters
-
-Most tools accept a `filter` object that maps to Pirsch query parameters:
-
-```javascript
-{
-  // Date/Time
-  "from": "2024-01-01",        // Start date (YYYY-MM-DD)
-  "to": "2024-01-31",          // End date (YYYY-MM-DD)
-  "from_time": "09:00",        // Start time (HH:MM)
-  "to_time": "17:00",          // End time (HH:MM)
-  "tz": "America/New_York",    // Timezone
-  
-  // Dimensions
-  "path": "~/news/",           // Exact or operator-based path filter (~ contains, ! not, ^ does-not-contain)
-  "entry_path": "/landing",    // Entry page
-  "exit_path": "/checkout",    // Exit page
-  "pattern": "*.pdf",          // URL pattern
-  
-  // Traffic Sources
-  "referrer": "google.com",    // Referrer domain
-  "referrer_name": "Google",   // Referrer name
-  "channel": "organic",        // Traffic channel
-  
-  // UTM Parameters
-  "utm_source": "newsletter",
-  "utm_medium": "email",
-  "utm_campaign": "summer-sale",
-  "utm_content": "header-cta",
-  "utm_term": "analytics",
-  
-  // Device/Browser
-  "os": "Windows",
-  "browser": "Chrome",
-  "platform": "desktop",       // desktop | mobile | unknown
-  "screen_class": "xxl",
-  
-  // Location
-  "country": "US",
-  "city": "New York",
-  "language": "en",
-  
-  // Pagination/Sorting
-  "offset": 0,
-  "limit": 100,
+  "metric": "pages",
+  "domainId": "your-domain-id",
+  "from": "2026-08-01",
+  "to": "2026-08-23",
+  "limit": 20,
   "sort": "visitors",
-  "direction": "desc",         // asc | desc
-  "search": "/news/",          // Path-shaped searches are narrowed to root-prefix matches on page-style tools
-  "path_prefix": "/news/",     // Optional explicit MCP-local prefix matcher for page-style tools
-  "keyword": "wordpress crm",  // Google Search Console keyword filter
-  
-  // Advanced
-  "event": "signup",
-  "event_meta_key": "plan",
-  "tag": "premium",
-  "visitor_id": "12345...",    // Required together with session_id for pirsch_session_details
-  "session_id": "67890",
-  "custom_metric_key": "revenue",
-  "custom_metric_type": "float"
+  "direction": "desc"
 }
 ```
 
-## Usage Examples
+The server maps public camel-case fields such as `eventMetaKey`, `entryPath`, `operatingSystem`, and `utmCampaign` to Pirsch's documented API-v1 parameter names. `limit` is constrained to 1–100 and active visitor `start` to 0–3600 seconds.
 
-### Basic Analytics Query
-```
-Show me the visitor statistics for last week
-```
+Metrics include totals, visitors, pages and entry/exit pages, session and page duration, goals, events and event metadata, growth, active visitors, time breakdowns, acquisition, browser/device, geographic, UTM, tags, keywords, funnels, sessions, and session details. `session_details` requires both `visitorId` and `sessionId`; event-specific metrics require `event`.
 
-### Page Performance Analysis
-```
-What are my top 10 /news/ posts by traffic this month?
-```
+### Comparing periods
 
-### Campaign Tracking
-```
-Analyze UTM campaign performance for the summer sale
-```
+Provide a named `period` (`today`, `yesterday`, `week`, `lastWeek`, `month`, or `lastMonth`) or both explicit date pairs:
 
-### Traffic Sources
-```
-Show me referrer breakdown excluding direct traffic
+```json
+{
+  "domainId": "your-domain-id",
+  "from": "2026-08-01",
+  "to": "2026-08-07",
+  "compareFrom": "2026-07-25",
+  "compareTo": "2026-07-31",
+  "scale": "day"
+}
 ```
 
-### Period Comparison
-```
-Compare this month's metrics to the same period last year
-```
+The response compares `/statistics/total` and retains the two `/statistics/visitor` series; it does not estimate totals by summing charts.
 
-### Real-time Monitoring
-```
-How many people are on my site right now?
-```
+## 1.0 migration
 
-### Goals and Events
-```
-Show me conversion goals and top event-driven pages for the last 90 days
-```
+Version 1.0 intentionally replaces the former 17-tool interface. There are no default aliases because aliases would keep unsafe domain-selection and ambiguous input behavior alive.
 
-### Session Investigation
-```
-List recent sessions that entered on /news/ and inspect one session in detail
-```
+| Previous tools | Replacement |
+| --- | --- |
+| `pirsch_overview`, `pirsch_total`, `pirsch_pages`, `pirsch_events`, and other statistic tools | `pirsch_query_statistics` with `metric` |
+| `pirsch_utm` | `pirsch_query_statistics` with one of the `utm_*` metrics |
+| `pirsch_compare` | `pirsch_compare_periods` |
+| Domain discovery | `pirsch_list_domains` |
+
+Input names are now camel-case and flat (`domainId`, `compareFrom`, `eventMetaKey`), not `domain_id`, nested `filter`, or compatibility aliases.
 
 ## Development
 
-### Building from Source
-
 ```bash
 npm install
-npm run build
-```
-
-### Development Mode
-
-```bash
-npm run dev  # Watch mode with auto-reload
-```
-
-### Testing
-
-```bash
+npm run typecheck
+npm run lint
 npm test
+npm run build
+npx -y @modelcontextprotocol/inspector@latest --cli node dist/index.js --method tools/list --format json
 ```
 
-## Troubleshooting
-
-### Authentication Issues
-
-#### Invalid credentials error
-- Verify your Client ID and Secret are correct
-- Check that your API client has appropriate permissions in Pirsch
-- Ensure credentials are properly set in environment variables
-
-#### Token refresh failures
-- The server automatically refreshes tokens 60 seconds before expiry
-- Check network connectivity to Pirsch API
-- Verify `PIRSCH_TOKEN_SKEW_MS` is not set too low
-
-### Domain Issues
-
-#### Domain not found
-- Run `pirsch_list_domains` to see available domains
-- Verify `PIRSCH_DEFAULT_DOMAIN_ID` is correct
-- Check API client has access to the domain
-
-#### No data returned
-- Verify the date range contains data
-- Check timezone settings match your Pirsch configuration
-- Ensure proper filtering parameters
-- Use `pirsch_total` for custom date range totals; `pirsch_overview` is cached and not filterable
-- For page-style tools, path-shaped `search`, `~/path/`, and `/path/*` filters are narrowed to root-prefix matches inside the MCP
-- Use `path_prefix` when you want explicit prefix behavior without relying on Pirsch operators
-
-### Performance
-
-#### Slow responses
-- Token caching reduces authentication overhead
-- Consider adjusting `PIRSCH_TOKEN_SKEW_MS` for your use case
-- Check network latency to Pirsch API endpoints
-
-## Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes with tests
-4. Submit a pull request
-
-## License
-
-MIT - See [LICENSE](LICENSE) file for details.
+The release workflow publishes to npm with trusted publishing and then publishes the same tagged manifest to the MCP Registry through GitHub OIDC. Local development and CI never publish anything.
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/verygoodplugins/mcp-pirsch/issues)
-- **Documentation**: [Pirsch API Docs](https://docs.pirsch.io/api-sdks/api)
+For bugs and feature requests, open an issue in this repository. Pirsch questions are best answered through the [Pirsch documentation](https://docs.pirsch.io/api-sdks/api-v1); package support is maintained by [Very Good Plugins](https://verygoodplugins.com/?utm_source=github).
 
-## Credits
-
-Built by [Jack Arturo](https://x.com/verygoodplugins) 🧡
-
-- Powered by [Pirsch Analytics](https://pirsch.io)
-- Built with [Model Context Protocol SDK](https://github.com/anthropics/model-context-protocol)
-- Part of the [Very Good Plugins](https://verygoodplugins.com?utm_source=github) MCP ecosystem
+Built with 🧡 by Very Good Plugins.
