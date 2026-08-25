@@ -22,71 +22,19 @@
   "tools": [
     {
       "name": "pirsch_list_domains",
-      "description": "List all domains in your Pirsch account"
+      "description": "List safe summaries of Pirsch domains available to the configured read-only client"
     },
     {
-      "name": "pirsch_overview",
-      "description": "Get the cached overview snapshot for a domain; filters do not apply"
+      "name": "pirsch_query_statistics",
+      "description": "Read one documented Pirsch Analytics API v1 metric for an explicitly selected domain and filter"
     },
     {
-      "name": "pirsch_total",
-      "description": "Get total visitors, views, sessions, bounce rate, conversion rate, and custom metrics"
+      "name": "pirsch_list_filter_options",
+      "description": "List supported values for one documented Pirsch Analytics API v1 filter dimension"
     },
     {
-      "name": "pirsch_visitors",
-      "description": "Get visitor time-series data"
-    },
-    {
-      "name": "pirsch_pages",
-      "description": "Get page-level analytics"
-    },
-    {
-      "name": "pirsch_entry_pages",
-      "description": "Get entry page analytics"
-    },
-    {
-      "name": "pirsch_exit_pages",
-      "description": "Get exit page analytics"
-    },
-    {
-      "name": "pirsch_referrers",
-      "description": "Get referrer statistics"
-    },
-    {
-      "name": "pirsch_goals",
-      "description": "Get conversion goals and their performance"
-    },
-    {
-      "name": "pirsch_events",
-      "description": "Get event statistics"
-    },
-    {
-      "name": "pirsch_event_pages",
-      "description": "Get pages on which a specific event fired"
-    },
-    {
-      "name": "pirsch_utm",
-      "description": "Get UTM campaign statistics"
-    },
-    {
-      "name": "pirsch_growth",
-      "description": "Get growth rates for key metrics"
-    },
-    {
-      "name": "pirsch_active",
-      "description": "Get currently active visitors"
-    },
-    {
-      "name": "pirsch_sessions",
-      "description": "Get session list with entry, exit, and device/source details"
-    },
-    {
-      "name": "pirsch_session_details",
-      "description": "Get the full page-view and event timeline for a single session"
-    },
-    {
-      "name": "pirsch_compare",
-      "description": "Compare true period totals and visitor series between two time periods"
+      "name": "pirsch_compare_periods",
+      "description": "Compare Pirsch totals and visitor series for a named or explicitly supplied pair of periods"
     }
   ]
 }

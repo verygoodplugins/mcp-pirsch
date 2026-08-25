@@ -1,4 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/server';
+import packageJson from '../package.json' with { type: 'json' };
 import { filterOptionMetrics, statisticsMetrics } from './metrics.js';
 import { PirschClient, type PirschClientOptions } from './pirsch-client.js';
 import {
@@ -40,7 +41,7 @@ function jsonResult<T>(output: T) {
 
 function errorResult(error: unknown) {
   const message = error instanceof Error ? error.message : 'Pirsch request failed.';
-  return { content: [{ type: 'text' as const, text: message }], isError: true };
+  return { ...jsonResult({ error: true, message }), isError: true };
 }
 
 function resolveDomain(domainId: string | undefined, defaultDomainId: string | undefined): string {
@@ -140,7 +141,7 @@ export function createPirschServer(options: PirschServerOptions = {}): McpServer
     return reader;
   };
 
-  const server = new McpServer({ name: 'mcp-pirsch', version: '1.0.0' });
+  const server = new McpServer({ name: 'mcp-pirsch', version: packageJson.version });
 
   server.registerTool(
     'pirsch_list_domains',

@@ -1,4 +1,7 @@
 import { Client, InMemoryTransport } from '@modelcontextprotocol/client';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import packageJson from '../package.json' with { type: 'json' };
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createPirschServer, type PirschReader } from './server.js';
 import { comparisonInputSchema, filterOptionsInputSchema, statisticsQuerySchema } from './schemas.js';
@@ -28,6 +31,20 @@ async function connect(clientFactory: () => PirschReader) {
 }
 
 describe('Pirsch MCP tool contracts', () => {
+  it('keeps the published manifest aligned with the runtime tool catalog', async () => {
+    const client = await connect(() => ({ listDomains: vi.fn(), get: vi.fn() }));
+    const manifest = JSON.parse(readFileSync(fileURLToPath(new URL('../server.json', import.meta.url)), 'utf8')) as {
+      version: string;
+      packages: Array<{ version: string }>;
+      tools: Array<{ name: string }>;
+    };
+
+    expect(manifest.tools.map((tool) => tool.name)).toEqual((await client.listTools()).tools.map((tool) => tool.name));
+    expect(manifest.version).toBe(packageJson.version);
+    expect(manifest.packages[0].version).toBe(packageJson.version);
+    expect(client.getServerVersion()).toMatchObject({ name: 'mcp-pirsch', version: packageJson.version });
+  });
+
   it('returns only safe domains as structured content with a JSON text fallback', async () => {
     const listDomains = vi.fn().mockResolvedValue([{ id: 'domain-1', hostname: 'example.com', timezone: 'UTC' }]);
     const client = await connect(() => ({ listDomains, get: vi.fn() }));
@@ -46,6 +63,11 @@ describe('Pirsch MCP tool contracts', () => {
     const result = await client.callTool({ name: 'pirsch_query_statistics', arguments: { metric: 'pages' } });
 
     expect(result.isError).toBe(true);
+    expect(result.structuredContent).toEqual({
+      error: true,
+      message: "metric 'pages' requires both from and to dates.",
+    });
+    expect(JSON.parse((result.content as Array<{ text: string }>)[0].text)).toEqual(result.structuredContent);
     expect(get).not.toHaveBeenCalled();
   });
 
