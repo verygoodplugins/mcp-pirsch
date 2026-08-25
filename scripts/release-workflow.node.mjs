@@ -18,7 +18,7 @@ test('registry publication follows npm publication and uses OIDC', () => {
 test('CI publishes the organization-required test check after both Node versions pass', () => {
   const workflow = readFileSync('.github/workflows/ci.yml', 'utf8');
 
-  assert.match(workflow, /\n  merge_group:\n/);
+  assert.match(workflow, /\n  merge_group:\n    types: \[checks_requested\]\n/);
   assert.match(workflow, /\n  test-node:\n/);
   assert.match(workflow, /\n  test:\n    name: test\n    needs: test-node\n    if: \$\{\{ always\(\) \}\}/);
   assert.match(workflow, /needs\.test-node\.result/);
