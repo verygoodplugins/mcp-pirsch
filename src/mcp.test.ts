@@ -1,4 +1,6 @@
 import { Client, InMemoryTransport } from '@modelcontextprotocol/client';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createPirschServer, type PirschReader } from './server.js';
 import { comparisonInputSchema, filterOptionsInputSchema, statisticsQuerySchema } from './schemas.js';
@@ -28,6 +30,15 @@ async function connect(clientFactory: () => PirschReader) {
 }
 
 describe('Pirsch MCP tool contracts', () => {
+  it('keeps the published manifest aligned with the runtime tool catalog', async () => {
+    const client = await connect(() => ({ listDomains: vi.fn(), get: vi.fn() }));
+    const manifest = JSON.parse(readFileSync(fileURLToPath(new URL('../server.json', import.meta.url)), 'utf8')) as {
+      tools: Array<{ name: string }>;
+    };
+
+    expect(manifest.tools.map((tool) => tool.name)).toEqual((await client.listTools()).tools.map((tool) => tool.name));
+  });
+
   it('returns only safe domains as structured content with a JSON text fallback', async () => {
     const listDomains = vi.fn().mockResolvedValue([{ id: 'domain-1', hostname: 'example.com', timezone: 'UTC' }]);
     const client = await connect(() => ({ listDomains, get: vi.fn() }));
