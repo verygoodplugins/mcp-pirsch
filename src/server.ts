@@ -15,7 +15,7 @@ import {
   type StatisticsQuery,
 } from './schemas.js';
 import type { PirschCredentials, PirschFilter, SafeDomain, StatisticsTotals, VisitorsPoint } from './types.js';
-import { getDateRange, isoDate, pctChange } from './utils.js';
+import { getDateRange, isoDate, pctChange, type PirschPeriod } from './utils.js';
 
 export interface PirschReader {
   listDomains(): Promise<SafeDomain[]>;
@@ -83,20 +83,30 @@ function previousRange(from: string, to: string): { from: string; to: string } {
   };
 }
 
-function resolveComparisonRanges(input: ComparisonQuery) {
-  if (input.from && input.to && input.compareFrom && input.compareTo) {
-    return { current: { from: input.from, to: input.to }, previous: { from: input.compareFrom, to: input.compareTo } };
+function validateResolvedClockRange(input: ComparisonQuery, range: { from: string; to: string }): void {
+  if (range.from === range.to && input.fromTime && input.toTime && input.fromTime > input.toTime) {
+    throw new Error('toTime must be on or after fromTime for a same-day range.');
   }
-  if (input.period) {
-    const range = getDateRange(input.period);
-    const current = { from: isoDate(range.start), to: isoDate(range.end) };
-    return { current, previous: previousRange(current.from, current.to) };
-  }
-  throw new Error('Provide period or from/to plus compareFrom/compareTo.');
 }
 
-async function comparePeriods(reader: PirschReader, domainId: string, input: ComparisonQuery) {
-  const { current, previous } = resolveComparisonRanges(input);
+function resolveComparisonRanges(input: ComparisonQuery, timezone?: string) {
+  let ranges: { current: { from: string; to: string }; previous: { from: string; to: string } };
+  if (input.from && input.to && input.compareFrom && input.compareTo) {
+    ranges = { current: { from: input.from, to: input.to }, previous: { from: input.compareFrom, to: input.compareTo } };
+  } else if (input.period) {
+    const range = getDateRange(input.period as PirschPeriod, timezone);
+    const current = { from: isoDate(range.start), to: isoDate(range.end) };
+    ranges = { current, previous: previousRange(current.from, current.to) };
+  } else {
+    throw new Error('Provide period or from/to plus compareFrom/compareTo.');
+  }
+  validateResolvedClockRange(input, ranges.current);
+  validateResolvedClockRange(input, ranges.previous);
+  return ranges;
+}
+
+async function comparePeriods(reader: PirschReader, domainId: string, input: ComparisonQuery, configuredTimezone?: string) {
+  const { current, previous } = resolveComparisonRanges(input, input.timezone ?? configuredTimezone);
   const { domainId: _domainId, period: _period, compareFrom: _compareFrom, compareTo: _compareTo, ...filters } = input;
   const currentFilter = { ...filters, ...current };
   const previousFilter = { ...filters, ...previous };
@@ -120,11 +130,12 @@ async function comparePeriods(reader: PirschReader, domainId: string, input: Com
 
 export function createPirschServer(options: PirschServerOptions = {}): McpServer {
   const defaultDomainId = options.defaultDomainId ?? process.env.PIRSCH_DEFAULT_DOMAIN_ID;
+  const configuredTimezone = options.clientOptions?.timezone ?? process.env.PIRSCH_TIMEZONE;
   let reader: PirschReader | undefined;
   const getReader = () => {
     reader ??= options.clientFactory?.() ?? new PirschClient(
       options.credentials ?? { clientId: process.env.PIRSCH_CLIENT_ID, clientSecret: process.env.PIRSCH_CLIENT_SECRET },
-      { ...options.clientOptions, timezone: options.clientOptions?.timezone ?? process.env.PIRSCH_TIMEZONE }
+      { ...options.clientOptions, timezone: configuredTimezone }
     );
     return reader;
   };
@@ -202,7 +213,7 @@ export function createPirschServer(options: PirschServerOptions = {}): McpServer
     async (input) => {
       try {
         const domainId = resolveDomain(input.domainId, defaultDomainId);
-        return jsonResult(await comparePeriods(getReader(), domainId, input));
+        return jsonResult(await comparePeriods(getReader(), domainId, input, configuredTimezone));
       } catch (error) {
         return errorResult(error);
       }

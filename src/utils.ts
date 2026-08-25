@@ -1,8 +1,20 @@
 import type { VisitorsPoint } from './types.js';
 
-export function getDateRange(period: 'today' | 'yesterday' | 'week' | 'lastWeek' | 'month' | 'lastMonth') {
-  const now = new Date();
-  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+export type PirschPeriod = 'today' | 'yesterday' | 'week' | 'lastWeek' | 'month' | 'lastMonth';
+
+function dateInTimezone(now: Date, timezone: string): Date {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+  const value = Object.fromEntries(parts.filter((part) => part.type !== 'literal').map((part) => [part.type, part.value]));
+  return new Date(Date.UTC(Number(value.year), Number(value.month) - 1, Number(value.day)));
+}
+
+export function getDateRange(period: PirschPeriod, timezone = 'UTC', now = new Date()) {
+  const start = dateInTimezone(now, timezone);
   const end = new Date(start);
 
   switch (period) {
@@ -15,7 +27,7 @@ export function getDateRange(period: 'today' | 'yesterday' | 'week' | 'lastWeek'
       end.setUTCHours(23, 59, 59, 999);
       return { start, end };
     case 'week': {
-      const day = now.getUTCDay();
+      const day = start.getUTCDay();
       start.setUTCDate(start.getUTCDate() - ((day + 6) % 7));
       end.setTime(start.getTime());
       end.setUTCDate(start.getUTCDate() + 6);
@@ -23,7 +35,7 @@ export function getDateRange(period: 'today' | 'yesterday' | 'week' | 'lastWeek'
       return { start, end };
     }
     case 'lastWeek': {
-      const day = now.getUTCDay();
+      const day = start.getUTCDay();
       start.setUTCDate(start.getUTCDate() - ((day + 6) % 7) - 7);
       end.setTime(start.getTime());
       end.setUTCDate(start.getUTCDate() + 6);
