@@ -55,6 +55,67 @@ function runViaPath(entryPath: string, flags: string[] = []): Promise<string> {
   });
 }
 
+function discoverModernProtocol(entryPath: string): Promise<{ supportedVersions: string[] }> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [entryPath], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: {
+        ...process.env,
+        PIRSCH_CLIENT_ID: 'test-client-id',
+        PIRSCH_CLIENT_SECRET: 'test-client-secret',
+      },
+    });
+
+    let stdout = '';
+    let stderr = '';
+    let settled = false;
+    const finish = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      child.kill();
+      callback();
+    };
+    const timer = setTimeout(() => {
+      finish(() => reject(new Error(`Timed out waiting for modern discovery. stderr so far: ${stderr}`)));
+    }, 8_000);
+
+    child.stdout.on('data', (chunk: Buffer) => {
+      stdout += chunk.toString();
+      const newline = stdout.indexOf('\n');
+      if (newline === -1) return;
+      try {
+        const response = JSON.parse(stdout.slice(0, newline)) as { result?: { supportedVersions?: string[] } };
+        const supportedVersions = response.result?.supportedVersions;
+        if (!supportedVersions) throw new Error(`Unexpected modern discovery response: ${stdout}`);
+        finish(() => resolve({ supportedVersions }));
+      } catch (error) {
+        finish(() => reject(error));
+      }
+    });
+    child.stderr.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
+    child.on('error', (error) => {
+      finish(() => reject(error));
+    });
+    child.on('exit', (code) => {
+      finish(() => reject(new Error(`Server process exited early with code ${code}. stderr: ${stderr}`)));
+    });
+    child.stdin.write(`${JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'server/discover',
+      params: {
+        _meta: {
+          'io.modelcontextprotocol/protocolVersion': '2026-07-28',
+          'io.modelcontextprotocol/clientCapabilities': {},
+        },
+      },
+    })}\n`);
+  });
+}
+
 describe('CLI entry-point detection', () => {
   const tempDirs: string[] = [];
 
@@ -97,5 +158,9 @@ describe('CLI entry-point detection', () => {
     await expect(runViaPath(binPath, ['--preserve-symlinks-main'])).resolves.toContain(
       'Pirsch MCP server running'
     );
+  });
+
+  it('serves modern protocol discovery over stdio', async () => {
+    await expect(discoverModernProtocol(distEntry)).resolves.toEqual({ supportedVersions: ['2026-07-28'] });
   });
 });
