@@ -1,4 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/server';
+import packageJson from '../package.json' with { type: 'json' };
 import { filterOptionMetrics, statisticsMetrics } from './metrics.js';
 import { PirschClient, type PirschClientOptions } from './pirsch-client.js';
 import {
@@ -140,7 +141,7 @@ export function createPirschServer(options: PirschServerOptions = {}): McpServer
     return reader;
   };
 
-  const server = new McpServer({ name: 'mcp-pirsch', version: '1.0.0' });
+  const server = new McpServer({ name: 'mcp-pirsch', version: packageJson.version });
 
   server.registerTool(
     'pirsch_list_domains',

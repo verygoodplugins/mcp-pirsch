@@ -1,6 +1,7 @@
 import { Client, InMemoryTransport } from '@modelcontextprotocol/client';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import packageJson from '../package.json' with { type: 'json' };
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createPirschServer, type PirschReader } from './server.js';
 import { comparisonInputSchema, filterOptionsInputSchema, statisticsQuerySchema } from './schemas.js';
@@ -33,10 +34,15 @@ describe('Pirsch MCP tool contracts', () => {
   it('keeps the published manifest aligned with the runtime tool catalog', async () => {
     const client = await connect(() => ({ listDomains: vi.fn(), get: vi.fn() }));
     const manifest = JSON.parse(readFileSync(fileURLToPath(new URL('../server.json', import.meta.url)), 'utf8')) as {
+      version: string;
+      packages: Array<{ version: string }>;
       tools: Array<{ name: string }>;
     };
 
     expect(manifest.tools.map((tool) => tool.name)).toEqual((await client.listTools()).tools.map((tool) => tool.name));
+    expect(manifest.version).toBe(packageJson.version);
+    expect(manifest.packages[0].version).toBe(packageJson.version);
+    expect(client.getServerVersion()).toMatchObject({ name: 'mcp-pirsch', version: packageJson.version });
   });
 
   it('returns only safe domains as structured content with a JSON text fallback', async () => {
