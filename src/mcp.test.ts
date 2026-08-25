@@ -7,6 +7,7 @@ const servers: Array<ReturnType<typeof createPirschServer>> = [];
 const clients: Client[] = [];
 
 afterEach(async () => {
+  vi.useRealTimers();
   await Promise.all(clients.splice(0).map((client) => client.close()));
   await Promise.all(servers.splice(0).map((server) => server.close()));
 });
@@ -82,6 +83,74 @@ describe('Pirsch MCP tool contracts', () => {
     expect(get).toHaveBeenCalledWith('/options/event', 'default-domain', {});
   });
 
+  it('resolves named comparison periods in the requested timezone', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-01T00:30:00.000Z'));
+    const get = vi.fn().mockResolvedValue({ visitors: 1 });
+    const client = await connect(() => ({ listDomains: vi.fn(), get }));
+
+    const result = await client.callTool({
+      name: 'pirsch_compare_periods',
+      arguments: { period: 'today', timezone: 'America/Los_Angeles' },
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(get.mock.calls[0]).toEqual(['/statistics/total', 'default-domain', expect.objectContaining({
+      from: '2026-07-31',
+      to: '2026-07-31',
+      timezone: 'America/Los_Angeles',
+    })]);
+  });
+
+  it('uses the timezone-local weekday for named weekly periods', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-03T00:30:00.000Z'));
+    const get = vi.fn().mockResolvedValue({ visitors: 1 });
+    const client = await connect(() => ({ listDomains: vi.fn(), get }));
+
+    const result = await client.callTool({
+      name: 'pirsch_compare_periods',
+      arguments: { period: 'week', timezone: 'America/Los_Angeles' },
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(get.mock.calls[0]).toEqual(['/statistics/total', 'default-domain', expect.objectContaining({
+      from: '2026-07-27',
+      to: '2026-08-02',
+    })]);
+  });
+
+  it('resolves named comparison periods in the configured timezone', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-01T00:30:00.000Z'));
+    const get = vi.fn().mockResolvedValue({ visitors: 1 });
+    const client = await connectOptions({
+      clientFactory: () => ({ listDomains: vi.fn(), get }),
+      clientOptions: { timezone: 'America/Los_Angeles' },
+      defaultDomainId: 'default-domain',
+    });
+
+    const result = await client.callTool({ name: 'pirsch_compare_periods', arguments: { period: 'today' } });
+
+    expect(result.isError).toBeUndefined();
+    expect(get.mock.calls[0]).toEqual(['/statistics/total', 'default-domain', expect.objectContaining({
+      from: '2026-07-31',
+      to: '2026-07-31',
+    })]);
+  });
+
+  it('rejects reverse clocks after a named same-day period is resolved', async () => {
+    const get = vi.fn();
+    const client = await connect(() => ({ listDomains: vi.fn(), get }));
+
+    const result = await client.callTool({
+      name: 'pirsch_compare_periods',
+      arguments: { period: 'today', fromTime: '18:00', toTime: '09:00' },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(get).not.toHaveBeenCalled();
+  });
   it('keeps the environment timezone when custom client options are supplied', async () => {
     const originalTimezone = process.env.PIRSCH_TIMEZONE;
     process.env.PIRSCH_TIMEZONE = 'Europe/Berlin';
