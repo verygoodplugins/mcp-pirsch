@@ -151,7 +151,6 @@ describe('Pirsch MCP tool contracts', () => {
     expect(result.isError).toBe(true);
     expect(get).not.toHaveBeenCalled();
   });
-
   it('keeps the environment timezone when custom client options are supplied', async () => {
     const originalTimezone = process.env.PIRSCH_TIMEZONE;
     process.env.PIRSCH_TIMEZONE = 'Europe/Berlin';
