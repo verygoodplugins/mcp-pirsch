@@ -2,7 +2,7 @@
 
 This changelog is automatically managed by [Release Please](https://github.com/googleapis/release-please).
 
-## [0.1.3](https://github.com/verygoodplugins/mcp-pirsch/compare/mcp-pirsch-v0.1.2...mcp-pirsch-v0.1.3) (2026-08-25)
+## [0.2.0](https://github.com/verygoodplugins/mcp-pirsch/compare/mcp-pirsch-v0.1.2...mcp-pirsch-v0.2.0) (2026-08-25)
 
 
 ### Features
