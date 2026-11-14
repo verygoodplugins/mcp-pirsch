@@ -2,6 +2,13 @@
 
 This changelog is automatically managed by [Release Please](https://github.com/googleapis/release-please).
 
+## [0.2.1](https://github.com/verygoodplugins/mcp-pirsch/compare/mcp-pirsch-v0.2.0...mcp-pirsch-v0.2.1) (2026-11-14)
+
+
+### Bug Fixes
+
+* **ci:** forward Dependabot app credentials ([#88](https://github.com/verygoodplugins/mcp-pirsch/issues/88)) ([d4eee70](https://github.com/verygoodplugins/mcp-pirsch/commit/d4eee70311ef4e88caf0fc6a0769de6dee06eacb))
+
 ## [0.2.0](https://github.com/verygoodplugins/mcp-pirsch/compare/mcp-pirsch-v0.1.2...mcp-pirsch-v0.2.0) (2026-08-25)
 
 
